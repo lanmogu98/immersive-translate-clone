@@ -1,0 +1,60 @@
+/* Main container for the translated text */
+.immersive-translate-target {
+  display: block;
+  /* Force block behavior for the span */
+  margin-top: 8px;
+  /* Internal spacing */
+  margin-bottom: 2px;
+  color: inherit;
+  /* Inherit color from parent */
+  opacity: 0.85;
+  /* Slightly lighter to distinguish */
+  font-family: inherit;
+  /* Inherit font */
+  font-weight: normal;
+  line-height: normal;
+  /* text-align: left;  <-- Removed to support centered text */
+  /* Visual separation without boxiness */
+  border-top: 1px dashed rgba(0, 0, 0, 0.1);
+  padding-top: 4px;
+  background-color: transparent;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Dark mode adjustment (simple heuristic) */
+@media (prefers-color-scheme: dark) {
+  .immersive-translate-target {
+    border-top-color: rgba(255, 255, 255, 0.2);
+  }
+}
+
+.immersive-translate-loading {
+  font-size: 12px;
+  color: #888;
+  animation: pulse 1.5s infinite;
+  margin-top: 4px;
+}
+
+.immersive-translate-error {
+  font-size: 12px;
+  color: #e74c3c;
+  margin-top: 4px;
+  padding: 2px 4px;
+  background: #fdeaea;
+  border-radius: 4px;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.6;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0.6;
+  }
+}

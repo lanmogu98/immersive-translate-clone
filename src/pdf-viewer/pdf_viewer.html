@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html dir="ltr" mozdisallowselectionprint>
+
+<head>
+    <meta charset="utf-8">
+    <title>PDF Viewer - Immersive Translate Clone</title>
+    <!-- In a real implementation, you would link pdf.js generic viewer CSS here -->
+    <style>
+        body {
+            font-family: sans-serif;
+            background: #525659;
+            margin: 0;
+            padding: 20px;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #container {
+            background: white;
+            width: 800px;
+            height: 1000px;
+            color: black;
+            padding: 40px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            position: relative;
+            overflow: auto;
+        }
+
+        .warning {
+            background: #ff9800;
+            color: black;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="warning">
+        <strong>Note:</strong> This is a placeholder. To make this fully functional, you need to download and drop the
+        <a href="https://mozilla.github.io/pdf.js/getting_started/#download" target="_blank"
+            style="color: black;">PDF.js Generic Viewer</a> files into the <code>lib/</code> folder and update this HTML
+        to load <code>viewer.js</code>.
+    </div>
+
+    <h2>PDF Viewer Placeholder</h2>
+    <div id="container">
+        <p>PDF Content would render here using PDF.js.</p>
+        <p>Translation logic injects overlays on top of the text layer.</p>
+    </div>
+
+    <script src="viewer.js"></script>
+</body>
+
+</html>

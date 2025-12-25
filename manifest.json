@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "Immersive Translate Clone",
+  "version": "1.0.0",
+  "description": "A clone of Immersive Translate with local LLM support and PDF translation.",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting",
+    "contextMenus"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_title": "Immersive Translate Clone"
+  },
+  "options_page": "src/options/options.html",
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": [
+        "src/utils/llm-client.js", 
+        "src/utils/dom-utils.js", 
+        "src/content.js"
+      ],
+      "css": ["src/content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["lib/*", "src/pdf-viewer/*"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
