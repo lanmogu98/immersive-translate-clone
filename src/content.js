@@ -3,15 +3,23 @@ console.log('Immersive Translate Clone loaded.');
 
 // Global State
 let isScanning = false;
+let isTranslating = false;
 let translationQueue = [];
 let activeWorkers = 0;
-const MAX_CONCURRENT_WORKERS = 1; // Batching means we need fewer concurrent connections
-const BATCH_SIZE = 5; // Send 5 paragraphs at once for context
+
+// Configuration constants
+// MAX_CONCURRENT_WORKERS = 1: Single worker ensures DOM stability and avoids API rate limits
+// when using batched requests. Increase only if API supports high concurrency.
+const MAX_CONCURRENT_WORKERS = 1;
+// BATCH_SIZE = 5: Groups paragraphs for better translation context while keeping
+// request size reasonable. Larger batches improve context but increase latency.
+const BATCH_SIZE = 5;
 
 // Worker function: continuously pulls from queue until empty
 async function translationWorker(llmClient) {
     if (activeWorkers >= MAX_CONCURRENT_WORKERS) return;
     activeWorkers++;
+    isTranslating = true;
 
     console.log('Worker started. Active:', activeWorkers);
 
@@ -28,10 +36,9 @@ async function translationWorker(llmClient) {
             await translateBatch(batch, llmClient);
         } catch (err) {
             console.error('Batch translation failed:', err);
-            // Optional: fallback to individual or retry?
-            // For now, mark them as error
+            // Mark failed items as error
             batch.forEach(ctx => {
-                const node = DOMUtils.injectTranslationNode(ctx.element); // Ensure node exists
+                const node = DOMUtils.injectTranslationNode(ctx.element);
                 DOMUtils.showError(node, err.message || 'Error');
             });
         }
@@ -39,6 +46,12 @@ async function translationWorker(llmClient) {
 
     activeWorkers--;
     console.log('Worker stopped. Active:', activeWorkers);
+
+    // Mark translation as complete when all workers finish
+    if (activeWorkers === 0) {
+        isTranslating = false;
+        console.log('All translations completed.');
+    }
 }
 
 async function translateBatch(batch, llmClient) {
@@ -158,8 +171,13 @@ if (new URLSearchParams(window.location.search).get('autostart') === 'true') {
 }
 
 async function runTranslationProcess() {
+    // Prevent duplicate scans or interrupting ongoing translation
     if (isScanning) {
         console.log('Already scanning, skipping...');
+        return;
+    }
+    if (isTranslating) {
+        console.log('Translation in progress, please wait...');
         return;
     }
     isScanning = true;
@@ -168,7 +186,7 @@ async function runTranslationProcess() {
     try {
         const config = await chrome.storage.sync.get({
             apiUrl: 'https://ark.cn-beijing.volces.com/api/v3',
-            apiKey: '', // Removed hardcoded key
+            apiKey: '',
             modelName: 'deepseek-v3-2-251201',
             customPrompt: ''
         });
@@ -189,4 +207,13 @@ async function runTranslationProcess() {
     } finally {
         isScanning = false;
     }
+}
+
+// Node.js test support (no effect in extension runtime)
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        translateBatch,
+        translationWorker,
+        runTranslationProcess,
+    };
 }

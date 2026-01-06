@@ -13,11 +13,6 @@ class DOMUtils {
         return text.length > 10 && !/^\d+$/.test(text); // More than 10 chars, not just numbers
     }
 
-    static isAlreadyTranslated(el) {
-        return el.classList.contains('immersive-translate-target') ||
-            (el.nextElementSibling && el.nextElementSibling.classList.contains('immersive-translate-target'));
-    }
-
     static getTranslatableElements() {
         const elements = [];
         // Enhanced selector to include lists, blockquotes, and captions
@@ -115,4 +110,15 @@ class DOMUtils {
         const loading = node.querySelector('.immersive-translate-loading');
         if (loading) loading.remove();
     }
+
+    static showError(node, message) {
+        this.removeLoadingState(node);
+        node.textContent = `[Error: ${message}]`;
+        node.classList.add('immersive-translate-error');
+    }
+}
+
+// Node.js test support (no effect in extension runtime)
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { DOMUtils };
 }

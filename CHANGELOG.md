@@ -2,7 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased] - 2025-12-25
+## [Unreleased] - 2026-01-06
+
+### Fixed
+-   **P0: Missing Method**: Added `DOMUtils.showError()` method that was being called but didn't exist, causing runtime errors on batch translation failures.
+-   **P0: Double Callback**: Fixed `onDone` callback being called twice in `llm-client.js` when errors occurred, preventing unpredictable behavior.
+-   **P0: Silent Failure**: Popup now shows user-friendly error when translation cannot run on browser internal pages (chrome://, about://, etc.). Also attempts to inject content script if not already loaded.
+-   **P1: State Management**: Fixed race condition where users could trigger duplicate translations. Added `isTranslating` flag to properly track worker state.
+-   **P1: API Timeout**: Added 60-second timeout for API requests to prevent indefinite hangs on network issues.
+-   **P2: Dead Code**: Removed unused `isAlreadyTranslated()` method from `DOMUtils`.
+
+### Added
+-   **URL Validation**: Options page now validates API URL format before saving.
+-   **Input Validation**: Options page validates required fields (API Key, Model Name) before saving.
+-   **Test Suite**: Added Jest + jsdom unit tests (with `chrome.*` mocks) to cover key extension flows and roadmap fixes.
+
+### Changed
+-   **Prompt Architecture**: Removed duplicate default prompt from `background.js`. Now uses prompt from options config with minimal fallback.
+-   **Magic Numbers**: Added detailed comments explaining `MAX_CONCURRENT_WORKERS` and `BATCH_SIZE` configuration rationale.
+
+---
+
+## [1.0.0] - 2025-12-25
 
 ### Security
 -   **CRITICAL**: Removed all hardcoded API Keys from `content.js` and `options.js`. Configuration now acts strictly through `chrome.storage`.

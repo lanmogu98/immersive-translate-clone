@@ -7,6 +7,15 @@ class LLMClient {
         // Open a port to the background script
         const port = chrome.runtime.connect({ name: 'llm_stream' });
 
+        // Prevent onDone from being called multiple times
+        let isCompleted = false;
+        const complete = () => {
+            if (!isCompleted) {
+                isCompleted = true;
+                if (onDone) onDone();
+            }
+        };
+
         // Send the translation request
         // We send the config (API Key etc) with every request to avoid state sync issues in background
         port.postMessage({
@@ -20,12 +29,12 @@ class LLMClient {
             if (msg.error) {
                 onError(msg.error);
                 port.disconnect();
-                if (onDone) onDone(); // Ensure cleanup happens
+                complete();
             } else if (msg.chunk) {
                 onChunk(msg.chunk);
             } else if (msg.done) {
                 port.disconnect();
-                if (onDone) onDone();
+                complete();
             }
         });
 
@@ -34,8 +43,13 @@ class LLMClient {
             if (chrome.runtime.lastError) {
                 console.warn('Port disconnected:', chrome.runtime.lastError.message);
                 onError(chrome.runtime.lastError.message);
-                if (onDone) onDone();
             }
+            complete(); // Always complete on disconnect to ensure cleanup
         });
     }
+}
+
+// Node.js test support (no effect in extension runtime)
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { LLMClient };
 }

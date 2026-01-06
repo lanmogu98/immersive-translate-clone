@@ -14,6 +14,10 @@ This document outlines the architecture, coding standards, and documentation mai
   └── utils/
       ├── dom-utils.js   # Pure DOM manipulation helpers (Side-effect free where possible)
       └── llm-client.js  # Bridge between Content Script and Background Service
+
+/tests                  # Jest unit tests (jsdom + chrome mocks)
+jest.config.cjs         # Jest configuration
+package.json            # Dev dependencies + test scripts
 ```
 
 ## Architecture Principles
@@ -60,6 +64,15 @@ All developers must adhere to the following rules when updating code. **Code cha
 2.  **Verify**: Load the unpacked extension and test.
 3.  **Document**: Update `CHANGELOG.md` immediately with what you changed.
 4.  **Reflect**: If you finished a roadmap item, check it off in `TODO.md`.
+
+## Testing
+
+This repo uses **Jest + jsdom** for unit tests (no build pipeline).
+
+```bash
+npm install
+npm test
+```
 
 ## Security Checklist
 

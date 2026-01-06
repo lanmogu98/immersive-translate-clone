@@ -28,22 +28,17 @@ chrome.runtime.onConnect.addListener((port) => {
     }
 });
 
+// API request timeout in milliseconds (60 seconds)
+const API_TIMEOUT_MS = 60000;
+
+// Minimal fallback prompt if user hasn't configured one
+const FALLBACK_PROMPT = 'Translate the following text into Simplified Chinese. Maintain the original format. Use %% as paragraph separator for multi-paragraph input.';
+
 async function streamTranslation(text, config, port) {
     const { apiUrl, apiKey, modelName, customPrompt } = config;
-    const defaultPrompt = `You are a professional Simplified Chinese native translator who needs to fluently translate text into Simplified Chinese.
 
-## Translation Rules
-1. Output only the translated content, without explanations or additional content (such as "Here's the translation:" or "Translation as follows:")
-2. The returned translation must maintain exactly the same number of paragraphs and format as the original text
-3. If the text contains HTML tags, consider where the tags should be placed in the translation while maintaining fluency
-4. For content that should not be translated (such as proper nouns, code, etc.), keep the original text.
-5. If input contains %%, use %% in your output, if input has no %%, don't use %% in your output
-
-## OUTPUT FORMAT:
-- **Single paragraph input** → Output translation directly (no separators, no extra text)
-- **Multi-paragraph input** → Use %% as paragraph separator between translations`;
-
-    const systemPrompt = customPrompt || defaultPrompt;
+    // Use customPrompt from options, fall back to minimal prompt if empty
+    const systemPrompt = customPrompt || FALLBACK_PROMPT;
 
     if (!apiKey) {
         port.postMessage({ error: 'API Key is missing.' });
@@ -57,6 +52,11 @@ async function streamTranslation(text, config, port) {
     port.onDisconnect.addListener(() => {
         controller.abort();
     });
+
+    // Set timeout for API request
+    const timeoutId = setTimeout(() => {
+        controller.abort();
+    }, API_TIMEOUT_MS);
 
     try {
         const response = await fetch(`${apiUrl}/chat/completions`, {
@@ -115,13 +115,31 @@ async function streamTranslation(text, config, port) {
         }
 
         // Done
+        clearTimeout(timeoutId);
         port.postMessage({ done: true });
 
     } catch (err) {
+        clearTimeout(timeoutId);
         if (err.name === 'AbortError') {
-            console.log('Request aborted by user/disconnect.');
+            // Check if it was a timeout or user disconnect
+            console.log('Request aborted (timeout or disconnect).');
+            // Only send error if port is still connected (timeout case)
+            try {
+                port.postMessage({ error: 'Request timed out. Please try again.' });
+            } catch (e) {
+                // Port already disconnected, ignore
+            }
         } else {
             port.postMessage({ error: `Network Error: ${err.message}` });
         }
     }
+}
+
+// Node.js test support (no effect in extension runtime)
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        streamTranslation,
+        API_TIMEOUT_MS,
+        FALLBACK_PROMPT
+    };
 }

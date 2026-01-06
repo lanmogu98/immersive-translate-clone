@@ -45,3 +45,12 @@ Before using the extension, you must configure your API credentials.
 -   **Nothing happens?** Check if you have saved your API Key in Options.
 -   **Partial translation?** The API might be rate-limiting you. The extension processes 5 paragraphs at a time to be polite.
 -   **Security**: Your API Key is stored in `chrome.storage.sync`. It is never hardcoded in the source code.
+
+## Development
+
+Run unit tests:
+
+```bash
+npm install
+npm test
+```

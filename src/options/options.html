@@ -28,12 +28,20 @@
         }
 
         input[type="text"],
-        input[type="password"] {
+        input[type="password"],
+        textarea {
             width: 100%;
             padding: 10px;
             border: 1px solid #ddd;
             border-radius: 4px;
             box-sizing: border-box;
+            font-family: inherit;
+            font-size: 14px;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
         }
 
         .hint {
@@ -69,8 +77,8 @@
 
     <div class="form-group">
         <label for="apiUrl">API Base URL</label>
-        <input type="text" id="apiUrl" placeholder="https://api.openai.com/v1" value="https://api.openai.com/v1">
-        <div class="hint">For DeepSeek: https://api.deepseek.com or Volcengine endpoint</div>
+        <input type="text" id="apiUrl" placeholder="https://ark.cn-beijing.volces.com/api/v3">
+        <div class="hint">e.g. https://ark.cn-beijing.volces.com/api/v3, https://api.deepseek.com</div>
     </div>
 
     <div class="form-group">
@@ -80,14 +88,14 @@
 
     <div class="form-group">
         <label for="modelName">Model Name</label>
-        <input type="text" id="modelName" placeholder="gpt-3.5-turbo" value="gpt-3.5-turbo">
-        <div class="hint">e.g. deepseek-chat, gpt-4o</div>
+        <input type="text" id="modelName" placeholder="deepseek-v3-2-251201">
+        <div class="hint">e.g. deepseek-v3-2-251201, gpt-4o, deepseek-chat</div>
     </div>
 
     <div class="form-group">
         <label for="customPrompt">System Prompt</label>
-        <input type="text" id="customPrompt"
-            value="You are a professional translator. Translate the following text into Simplified Chinese. Maintain the original tone and formatting.">
+        <textarea id="customPrompt" rows="8" placeholder="Enter custom translation prompt..."></textarea>
+        <div class="hint">Customize how the AI translates. Leave empty to use default.</div>
     </div>
 
     <button id="save">Save Settings</button>
