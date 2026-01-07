@@ -1,0 +1,247 @@
+# 剩余项目设计文档
+
+本文档描述 `FUTURE_ROADMAP.md` 中尚未完成的 Issue 的实现路径、技术方案和测试计划。
+
+---
+
+## ⚙️ 项目约束（影响实现方式与测试方式）
+
+- **无构建工具 / 非 ESM**：当前 Options 页与 content scripts 都是直接用 `<script>` 加载；`background.js` 为 MV3 service worker。设计与代码示例需要遵循这一约束（不能直接用 `import ... from ...`）。
+- **共享模块（推荐 UMD 风格）**：新增 `src/utils/*.js` 建议同时满足：
+  - **扩展运行时**：将 API 挂到 `globalThis`（例如 `globalThis.PromptTemplates = {...}`），这样在 window（Options/Content）与 service worker（Background）里都可用。
+  - **Node/Jest 测试**：用 `module.exports` 导出同一套 API（例如 `if (typeof module !== 'undefined' && module.exports) module.exports = {...}`）。
+- **加载顺序（非常关键）**：
+  - **Options 页**：在 `options.html` 中先加载 utils，再加载 `options.js`（例如：`<script src="../utils/prompt-templates.js"></script>`）。
+  - **Background SW**：在 `background.js` 顶部使用 `importScripts('src/utils/prompt-templates.js')`（以及其他 utils），避免重复定义与漂移。
+  - **Content scripts**：在 `manifest.json` 的 `content_scripts[].js` 列表里把 utils 放在 `src/content.js` 之前，确保 `globalThis.*` 已初始化。
+- **Jest/jsdom 注意事项（避免"真空通过"）**：
+  - `jsdom` 默认 `offsetParent === null`，且 `innerText` 支持不完整；凡是测试 `DOMUtils.getTranslatableElements()` 或可见性/文本抽取逻辑的用例，必须显式 mock `offsetParent` 与 `innerText`，否则很容易出现"无论实现如何都通过"的假覆盖。
+
+## 📋 实现顺序与依赖关系
+
+```
+Phase 1: 基础设施 & 配置层
+├── Issue 9:  统一默认值（HTML/JS 对齐）
+├── Issue 15: 配置扩展图标
+└── Issue 17: Prompt 分离（协议 vs 用户翻译偏好）
+        ↓ (依赖)
+Phase 2: 模型/Provider 抽象
+└── Issue 18: 模型预设 + 自动端点配置
+        ↓ (依赖 17 的 prompt 架构)
+Phase 3: 内容处理增强
+├── Issue 16: 富文本格式保留
+├── Issue 19: 短文本筛选策略优化
+└── Issue 12: 源语言检测（可与 19 合并）
+        ↓
+Phase 4: 扩展性 & 用户偏好
+├── Issue 11: 目标语言选择器
+├── Issue 13: 翻译缓存
+└── Issue 14: 域名/元素排除列表
+        ↓
+Phase 5: UI 重构
+└── Issue 20: Settings 界面重新设计（依赖 17/18/11/14 的配置项）
+```
+
+---
+
+## Phase 1: 基础设施 & 配置层
+
+### Issue 9: HTML 和 JS 默认值不一致
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 默认值在多个位置重复定义（如 `options.js` 与 `content.js`），存在漂移风险；历史上也出现过 HTML 展示与 JS 默认值不一致的问题 |
+| **目标** | 单一来源：以 JS 中的默认配置为唯一默认值来源；HTML 仅用 placeholder 提示格式，并与默认配置保持一致；`content.js` 不再独自维护默认值 |
+| **改动文件** | `src/options/options.html`, `src/options/options.js` |
+| **技术方案** | 1. HTML 中 `<input>` 移除 `value` 属性，仅保留 `placeholder`（并确保 placeholder 与默认配置一致）<br>2. `restoreOptions()` 在 `DOMContentLoaded` 时从 `DEFAULT_CONFIG` 填充<br>3. `content.js` 获取配置时，改为与 Options 相同的默认来源（避免重复硬编码） |
+| **测试计划** | - 测试 `restoreOptions()` 在 storage 为空时使用 `DEFAULT_CONFIG`<br>- 测试 HTML 中 input 初始值为空（由 JS 填充）<br>- 测试 `content.js` 与 `options.js` 的默认 `apiUrl/modelName` 一致（防漂移） |
+
+---
+
+### Issue 15: 扩展图标未配置
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | `manifest.json` 缺少 `icons` 和 `action.default_icon`，Chrome 使用灰色默认图标 |
+| **目标** | 配置正确的图标路径，使扩展在工具栏和扩展管理页显示品牌图标 |
+| **改动文件** | `manifest.json`, `icons/` |
+| **技术方案** | 1. 使用现有 `icons/gpt4o_20250327.png` 作为临时图标<br>2. 在 `manifest.json` 添加：<br>```json<br>"icons": { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },<br>"action": { "default_icon": { "16": "icons/icon16.png", "48": "icons/icon48.png" } }<br>```<br>3. 生成不同尺寸的图标（或复用同一图标） |
+| **测试计划** | - 验证 `manifest.json` 包含正确的 `icons` 和 `action.default_icon` 字段<br>- 验证引用的图标文件存在 |
+
+---
+
+### Issue 17: Prompt 分离（协议 vs 用户翻译偏好）
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 当前 `customPrompt` 混合了协议约束（`%%` 分隔符规则）和翻译风格偏好，用户编辑可能破坏流式解析 |
+| **目标** | 拆分为：<br>1. **PROTOCOL_PROMPT**（内部，不可编辑）：输出格式、`%%` 规则<br>2. **userTranslationPrompt**（用户可编辑）：翻译风格、术语、语气 |
+| **改动文件** | `src/utils/prompt-templates.js`（新建）, `src/options/options.html`, `src/options/options.js`, `src/background.js` |
+| **技术方案** | ```javascript<br>// src/utils/prompt-templates.js（无 ESM；扩展运行时 + Jest 均可用）<br>const PROTOCOL_PROMPT = `...(包含 %% 分隔符规则 + 输出格式约束；可包含 {{TARGET_LANG}} 占位)...`;<br>const DEFAULT_USER_PROMPT = `翻译成简体中文，保持原文语气。`;<br><br>function buildSystemPrompt({ userPrompt, targetLanguage }) {<br>  const user = (userPrompt ?? '').length ? userPrompt : DEFAULT_USER_PROMPT;<br>  return PROTOCOL_PROMPT.replace('{{TARGET_LANG}}', targetLanguage || 'zh-CN') + '\\n\\n' + user;<br>}<br><br>function migrateCustomPrompt(oldConfig) {<br>  // 迁移策略：不覆盖已有 userTranslationPrompt；只在 customPrompt 存在且"非旧默认"时迁移<br>  // 建议保留 OLD_DEFAULT_PROMPT 常量用于严格相等对比，避免误迁移<br>}<br><br>const PromptTemplates = { PROTOCOL_PROMPT, DEFAULT_USER_PROMPT, buildSystemPrompt, migrateCustomPrompt };<br>if (typeof module !== 'undefined' && module.exports) module.exports = PromptTemplates;<br>else globalThis.PromptTemplates = PromptTemplates;<br>```<br><br>**Options 页面**：<br>- 隐藏或只读显示 `PROTOCOL_PROMPT`（不可编辑）<br>- 暴露 `userTranslationPrompt` 文本框（可编辑）<br>- `options.html` 通过 `<script src="../utils/prompt-templates.js"></script>` 先加载模板，再加载 `options.js`<br><br>**Background.js**：<br>- 顶部 `importScripts('src/utils/prompt-templates.js')`<br>- 使用 `PromptTemplates.buildSystemPrompt({ userPrompt: config.userTranslationPrompt, targetLanguage: config.targetLanguage })` 构建最终 system message<br><br>**迁移**：<br>- 首次加载：如果旧字段 `customPrompt` 存在且非旧默认，将其迁移到 `userTranslationPrompt`（仅在新字段为空时），然后删除 `customPrompt` |
+| **测试计划** | - `buildSystemPrompt()` 始终包含 PROTOCOL_PROMPT<br>- 用户 prompt 为空时使用默认值<br>- 迁移逻辑：旧 `customPrompt` → 新 `userTranslationPrompt`<br>- Background 构建的请求 body 包含正确的合并 prompt |
+
+---
+
+## Phase 2: 模型/Provider 抽象
+
+### Issue 18: 模型预设 + 自动端点配置
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 用户必须手动输入 `apiUrl` + `modelName`，容易出错 |
+| **目标** | 提供下拉选择器：选择 Provider（OpenAI/DeepSeek/Volcengine）和模型，系统自动填充端点和模型 ID |
+| **改动文件** | `src/utils/model-registry.js`（新建）, `src/options/options.html`, `src/options/options.js`, `src/background.js` |
+| **技术方案** | ```javascript<br>// src/utils/model-registry.js（无 ESM；扩展运行时 + Jest 均可用）<br>const MODEL_REGISTRY = {<br>  openai: {<br>    name: 'OpenAI',<br>    baseUrl: 'https://api.openai.com/v1',<br>    models: [<br>      { id: 'gpt-4o', name: 'GPT-4o' },<br>      { id: 'gpt-4o-mini', name: 'GPT-4o Mini' },<br>    ],<br>    authHeader: 'Bearer',<br>  },<br>  deepseek: {<br>    name: 'DeepSeek',<br>    baseUrl: 'https://api.deepseek.com',<br>    models: [<br>      { id: 'deepseek-chat', name: 'DeepSeek Chat' },<br>    ],<br>    authHeader: 'Bearer',<br>  },<br>  volcengine: {<br>    name: 'Volcengine Ark',<br>    baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',<br>    models: [<br>      { id: 'deepseek-v3-2-251201', name: 'DeepSeek V3' },<br>    ],<br>    authHeader: 'Bearer',<br>  },<br>  custom: {<br>    name: 'Custom Endpoint',<br>    baseUrl: '',<br>    models: [],<br>    authHeader: 'Bearer',<br>  },<br>};<br><br>function resolveConfig(providerId, modelId, apiKey, customUrl, customModel) {<br>  const provider = MODEL_REGISTRY[providerId];<br>  if (!provider) return null;<br>  if (providerId === 'custom') {<br>    return { apiUrl: (customUrl || '').trim(), modelName: (customModel || '').trim(), apiKey };<br>  }<br>  return { apiUrl: provider.baseUrl, modelName: modelId, apiKey };<br>}<br>```<br><br>**Options 页面**：<br>- Provider 下拉 → 联动 Model 下拉<br>- 选择 \"Custom\" 时显示 URL/Model 手动输入框<br><br>**存储结构（迁移风险控制）**：<br>- 推荐 **分阶段迁移**：先引入新字段（`providerId/modelId/...`），但同时继续维护"解析后的"`apiUrl/modelName`（兼容 `background.js/content.js` 现有读取），等后台/内容脚本完全改用新字段后再删除旧字段。<br><br>```javascript<br>// 新字段（source of truth）<br>{ providerId, modelId, apiKey, customUrl, customModel, userTranslationPrompt }<br>// 兼容字段（过渡期保留，由 resolveConfig 派生写回）<br>{ apiUrl, modelName }<br>// 废弃字段（迁移后删除）<br>{ customPrompt }<br>``` |
+| **测试计划** | - `resolveConfig()` 对每个 provider 返回正确的 baseUrl + modelName<br>- `resolveConfig('custom', ...)` 使用用户自定义值<br>- Options 页面加载时正确渲染 Provider/Model 下拉<br>- 切换 Provider 时 Model 列表联动更新 |
+
+---
+
+## Phase 3: 内容处理增强
+
+### Issue 16: 富文本格式保留
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 当前翻译丢失所有内联格式（`<a>`, `<strong>`, `<em>` 等） |
+| **目标** | 翻译后保留原文的 DOM 结构和链接 |
+| **改动文件** | `src/utils/dom-utils.js`, `src/content.js` |
+| **技术方案** | **Option A（安全优先）**：<br>1. 提取元素中所有 **文本节点**（保留相对位置）<br>2. 将文本节点内容拼接发送给 LLM（用特殊占位符标记边界）<br>3. 翻译返回后，将翻译文本 **按原顺序写回对应文本节点**<br>4. 保持所有标签/属性不变<br><br>```javascript<br>// 伪代码<br>function extractTextNodes(element) {<br>  const textNodes = [];<br>  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);<br>  while (walker.nextNode()) {<br>    textNodes.push(walker.currentNode);<br>  }<br>  return textNodes;<br>}<br><br>function applyTranslation(textNodes, translatedTexts) {<br>  textNodes.forEach((node, i) => {<br>    node.textContent = translatedTexts[i] || node.textContent;<br>  });<br>}<br>```<br><br>**挑战**：<br>- 如何在流式响应中正确对应文本节点？<br>- 解决方案：先收集完整翻译再一次性应用，或使用 `[T0]...[T1]...` 占位符标记 |
+| **测试计划** | - `extractTextNodes()` 正确提取嵌套元素中的所有文本节点<br>- 翻译后 `<a>` 链接仍可点击<br>- `<strong>/<em>` 标签保留<br>- 混合内联元素场景（`<p>Click <a href="#">here</a> for <strong>more</strong></p>`） |
+
+---
+
+### Issue 19: 短文本筛选策略优化
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 硬编码 `text.length > 8/10` 导致有意义的短文本被跳过 |
+| **目标** | 基于语义上下文而非长度判断是否翻译 |
+| **改动文件** | `src/utils/dom-utils.js`, `src/options/options.js`（可选配置） |
+| **技术方案** | ```javascript<br>// 新增筛选逻辑<br>static shouldTranslate(element, options = {}) {<br>  const text = element.innerText.trim();<br>  if (!text) return false;<br><br>  // 1. 跳过纯数字<br>  if (/^\d+$/.test(text)) return false;<br><br>  // 2. 语义区域优先级<br>  const inMainContent = element.closest('main, article, [role="main"]');<br>  const inNavArea = element.closest('nav, header, footer, aside, [role="navigation"]');<br><br>  // 3. 跳过交互元素（按钮、输入框）<br>  if (element.closest('button, input, select, textarea')) return false;<br>  if (element.getAttribute('role') === 'button') return false;<br><br>  // 4. 长度阈值（可配置）<br>  const minLength = options.translateShortTexts ? 1 : 8;<br>  const inMainMinLength = 3; // 主内容区放宽限制<br><br>  if (inMainContent) {<br>    return text.length >= inMainMinLength;<br>  }<br>  if (inNavArea && !options.translateNavigation) {<br>    return false; // 默认跳过导航区<br>  }<br>  return text.length >= minLength;<br>}<br>```<br><br>**用户配置**（Phase 4 实现，先预留接口）：<br>- `translateShortTexts: boolean`<br>- `translateNavigation: boolean` |
+| **测试计划** | - 主内容区（`<main>/<article>`）中的短文本被翻译<br>- 导航区（`<nav>`）中的短文本默认跳过<br>- 按钮/输入框内文本跳过<br>- 纯数字跳过 |
+
+---
+
+### Issue 12: 源语言检测
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 扩展会翻译已经是中文的页面，浪费 API 调用 |
+| **目标** | 检测页面/元素语言，跳过已经是目标语言的内容 |
+| **改动文件** | `src/utils/lang-detect.js`（新建）, `src/content.js` |
+| **技术方案** | ```javascript<br>// src/utils/lang-detect.js<br><br>// 简单启发式：检测 CJK 字符比例<br>function detectLanguage(text) {<br>  const cjkPattern = /[\u4e00-\u9fff\u3400-\u4dbf]/g;<br>  const matches = text.match(cjkPattern) || [];<br>  const cjkRatio = matches.length / text.length;<br><br>  if (cjkRatio > 0.3) return 'zh';<br>  return 'other'; // 简化：非中文即需翻译<br>}<br><br>function shouldSkipTranslation(text, targetLang = 'zh') {<br>  const detected = detectLanguage(text);<br>  return detected === targetLang;<br>}<br>```<br><br>**集成**：在 `getTranslatableElements()` 中调用 `shouldSkipTranslation()` 过滤 |
+| **测试计划** | - 纯中文文本被正确识别并跳过<br>- 英文文本不被跳过<br>- 中英混合文本（如技术文档）的边界情况 |
+
+---
+
+## Phase 4: 扩展性 & 用户偏好
+
+### Issue 11: 目标语言选择器
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 目标语言硬编码为简体中文 |
+| **目标** | 用户可选择目标语言（简中/繁中/英/日/韩等） |
+| **改动文件** | `src/options/options.html`, `src/options/options.js`, `src/utils/prompt-templates.js` |
+| **技术方案** | ```javascript<br>// 语言列表<br>const TARGET_LANGUAGES = [<br>  { code: 'zh-CN', name: '简体中文' },<br>  { code: 'zh-TW', name: '繁體中文' },<br>  { code: 'en', name: 'English' },<br>  { code: 'ja', name: '日本語' },<br>  { code: 'ko', name: '한국어' },<br>];<br><br>// 动态生成 prompt<br>function buildSystemPrompt(userPrompt, targetLang) {<br>  const langName = TARGET_LANGUAGES.find(l => l.code === targetLang)?.name || 'Simplified Chinese';<br>  return PROTOCOL_PROMPT.replace('{{TARGET_LANG}}', langName) + '\n\n' + userPrompt;<br>}<br>```<br><br>**存储**：`{ targetLanguage: 'zh-CN' }` |
+| **测试计划** | - `buildSystemPrompt()` 正确替换目标语言<br>- Options 页面正确渲染语言下拉<br>- 切换语言后 storage 正确更新 |
+
+---
+
+### Issue 13: 翻译缓存
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 相同内容每次都重新请求 API |
+| **目标** | 缓存已翻译内容，减少 API 调用 |
+| **改动文件** | `src/utils/translation-cache.js`（新建）, `src/content.js` |
+| **技术方案** | ```javascript<br>// src/utils/translation-cache.js<br><br>class TranslationCache {<br>  constructor(maxSize = 1000) {<br>    this.cache = new Map();<br>    this.maxSize = maxSize;<br>  }<br><br>  // 生成缓存 key：需要考虑"同一文本在不同设置下翻译结果不同"<br>  // 建议 key 至少包含：targetLang + modelName/provider + promptVersion + textHash<br>  getKey({ text, targetLang, modelName, promptVersion }) {<br>    return `${targetLang}:${modelName}:${promptVersion}:${this.hash(text)}`;<br>  }<br><br>  hash(text) {<br>    let h = 0;<br>    for (let i = 0; i < text.length; i++) {<br>      h = ((h << 5) - h) + text.charCodeAt(i);<br>      h |= 0;<br>    }<br>    return h.toString(36);<br>  }<br><br>  get(ctx) {<br>    return this.cache.get(this.getKey(ctx));<br>  }<br><br>  set(ctx, translation) {<br>    if (this.cache.size >= this.maxSize) {<br>      const firstKey = this.cache.keys().next().value;<br>      this.cache.delete(firstKey);<br>    }<br>    this.cache.set(this.getKey(ctx), translation);<br>  }<br>}<br>```<br><br>**promptVersion 建议**：可以是固定常量（例如 `PROMPT_VERSION = 'v1'`），当协议/默认 prompt 有破坏性变化时 bump，避免错误命中旧缓存。<br><br>**持久化**（可选）：使用 `chrome.storage.local` 跨会话缓存 |
+| **测试计划** | - 缓存命中时不调用 LLM<br>- 缓存未命中时正常调用并存入缓存<br>- 缓存达到 maxSize 时 LRU 淘汰<br>- 不同目标语言使用不同缓存条目 |
+
+---
+
+### Issue 14: 域名/元素排除列表
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 无法跳过特定网站或元素 |
+| **目标** | 用户可配置排除规则 |
+| **改动文件** | `src/options/options.html`, `src/options/options.js`, `src/content.js` |
+| **技术方案** | ```javascript<br>// 存储结构<br>{<br>  excludedDomains: ['example.com', '*.internal.com'],<br>  excludedSelectors: ['.no-translate', '[data-no-translate]'],<br>}<br><br>// content.js 启动时检查<br>function isExcludedDomain(hostname, patterns) {<br>  return patterns.some(pattern => {<br>    if (pattern.startsWith('*.')) {<br>      return hostname.endsWith(pattern.slice(1));<br>    }<br>    return hostname === pattern || hostname.endsWith('.' + pattern);<br>  });<br>}<br><br>// 在 getTranslatableElements 中跳过匹配选择器的元素<br>if (excludedSelectors.some(sel => element.matches(sel) || element.closest(sel))) {<br>  continue;<br>}<br>``` |
+| **测试计划** | - 排除域名匹配（精确匹配、通配符）<br>- 排除选择器匹配（class、attribute、祖先元素）<br>- 空排除列表时正常工作 |
+
+---
+
+## Phase 5: UI 重构
+
+### Issue 20: Settings 界面重新设计
+
+| 项目 | 内容 |
+|------|------|
+| **依赖** | Issue 17（Prompt 分离）、Issue 18（模型预设）、Issue 11（语言选择）、Issue 14（排除列表） |
+| **目标** | 现代化、分区的设置界面 |
+| **改动文件** | `src/options/options.html`, `src/options/options.css`（新建）, `src/options/options.js` |
+| **技术方案** | **布局结构**：<br>```<br>┌─────────────────────────────────────────┐<br>│  Settings                               │<br>├─────────────────────────────────────────┤<br>│  🔌 Provider & Model                    │<br>│  ├─ Provider: [OpenAI ▼]                │<br>│  ├─ Model: [GPT-4o ▼]                   │<br>│  └─ API Key: [••••••••••]               │<br>├─────────────────────────────────────────┤<br>│  🌐 Translation                         │<br>│  ├─ Target Language: [简体中文 ▼]        │<br>│  └─ Style Prompt: [textarea]            │<br>├─────────────────────────────────────────┤<br>│  🚫 Exclusions                          │<br>│  ├─ Excluded Domains: [textarea]        │<br>│  └─ Excluded Selectors: [textarea]      │<br>├─────────────────────────────────────────┤<br>│  ⚙️ Advanced (collapsible)              │<br>│  ├─ Custom API URL: [input]             │<br>│  └─ Custom Model ID: [input]            │<br>├─────────────────────────────────────────┤<br>│  [Save Settings]  ✓ Saved               │<br>└─────────────────────────────────────────┘<br>```<br><br>**样式**：<br>- 无构建工具，纯 CSS<br>- CSS 变量控制颜色主题<br>- 响应式布局（最小宽度 400px）<br>- 分区卡片式设计<br><br>**实现约束（减少联动改动）**：<br>- 尽量保持核心字段的 DOM `id` 稳定（如 `apiUrl/apiKey/modelName`），减少 `options.js` 与 `tests/options.test.js` 的改动范围。<br>- Prompt 分离（Issue 17）后 `customPrompt` 预计迁移为 `userTranslationPrompt`：若变更 `id`，需同步更新测试与迁移逻辑。 |
+| **测试计划** | - 各表单字段正确绑定到 storage<br>- Provider 切换联动 Model 列表<br>- 高级选项折叠/展开正常<br>- 验证逻辑（必填字段、URL 格式）|
+
+---
+
+## 📦 新增文件清单
+
+| 文件路径 | 用途 |
+|----------|------|
+| `src/utils/prompt-templates.js` | PROTOCOL_PROMPT + buildSystemPrompt() |
+| `src/utils/model-registry.js` | Provider/Model 注册表 + resolveConfig() |
+| `src/utils/lang-detect.js` | 简单语言检测 |
+| `src/utils/translation-cache.js` | 翻译缓存（LRU） |
+| `src/options/options.css` | Settings 页面样式 |
+| `icons/icon16.png` | 16x16 扩展图标 |
+| `icons/icon48.png` | 48x48 扩展图标 |
+| `icons/icon128.png` | 128x128 扩展图标 |
+
+---
+
+## 🧪 测试文件清单
+
+| 测试文件 | 覆盖 Issue |
+|----------|------------|
+| `tests/prompt-templates.test.js` | Issue 17 |
+| `tests/model-registry.test.js` | Issue 18 |
+| `tests/lang-detect.test.js` | Issue 12 |
+| `tests/translation-cache.test.js` | Issue 13 |
+| `tests/dom-utils-richtext.test.js` | Issue 16 |
+| `tests/dom-utils-filtering.test.js` | Issue 19 + Issue 14 选择器部分 |
+| `tests/exclusion.test.js` | Issue 14 域名匹配 |
+| `tests/options-defaults.test.js` | Issue 9 |
+| `tests/manifest.test.js` | Issue 15 |
+
+---
+
+## 🧪 测试实现注意事项（落实到可执行断言）
+
+- **避免"假通过"**：不要使用 `expect(true).toBe(true)` 作为占位；未实现的测试用例统一使用 `test.todo(...)`（或 `test.skip(...)` 并注明原因），确保"通过"代表真的测到了行为。
+- **jsdom 兼容**：涉及可见性与文本抽取时，必须 mock：
+  - `Object.defineProperty(el, 'offsetParent', { value: document.body })`
+  - `Object.defineProperty(el, 'innerText', { get() { return this.textContent; } })`
+  否则 `DOMUtils.getTranslatableElements()` 相关测试很容易不触发核心逻辑。
+
+## ⏱️ 预估工作量
+
+| Phase | Issues | 预估时间 |
+|-------|--------|----------|
+| Phase 1 | 9, 15, 17 | 2-3h |
+| Phase 2 | 18 | 2h |
+| Phase 3 | 16, 19, 12 | 4-5h |
+| Phase 4 | 11, 13, 14 | 3h |
+| Phase 5 | 20 | 3-4h |
+| **Total** | | **~15h** |
+
+---
+
+## 🚦 实施建议
+
+1. **先跑通 Phase 1**：这是后续所有功能的基础（配置结构、Prompt 架构）
+2. **Issue 16（富文本）复杂度最高**：建议先做 MVP（仅处理单层内联元素），再迭代处理嵌套场景
+3. **Issue 20（UI 重构）放最后**：等所有配置项确定后再设计界面，避免返工
+4. **每个 Phase 完成后跑全量测试**：确保没有回归
+

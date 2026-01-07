@@ -1,9 +1,15 @@
 function setupOptionsDom() {
   document.body.innerHTML = `
+    <select id="providerId"></select>
+    <select id="modelId"></select>
+    <select id="targetLanguage"></select>
+    <textarea id="userTranslationPrompt"></textarea>
+    <textarea id="excludedDomains"></textarea>
+    <textarea id="excludedSelectors"></textarea>
+    <details id="advancedSection"></details>
     <input id="apiUrl" />
     <input id="apiKey" />
     <input id="modelName" />
-    <input id="customPrompt" />
     <button id="save">Save</button>
     <span id="status"></span>
   `;
@@ -24,10 +30,11 @@ describe('options page', () => {
 
     require('../src/options/options.js');
 
+    document.getElementById('providerId').value = 'custom';
     document.getElementById('apiUrl').value = 'api.openai.com/v1';
     document.getElementById('apiKey').value = 'k';
     document.getElementById('modelName').value = 'm';
-    document.getElementById('customPrompt').value = '';
+    document.getElementById('targetLanguage').value = 'zh-CN';
 
     document.getElementById('save').click();
 
@@ -43,10 +50,14 @@ describe('options page', () => {
 
     require('../src/options/options.js');
 
+    document.getElementById('providerId').value = 'custom';
     document.getElementById('apiUrl').value = 'https://api.openai.com/v1';
     document.getElementById('apiKey').value = 'k';
     document.getElementById('modelName').value = 'm';
-    document.getElementById('customPrompt').value = 'prompt';
+    document.getElementById('targetLanguage').value = 'zh-CN';
+    document.getElementById('userTranslationPrompt').value = 'prompt';
+    document.getElementById('excludedDomains').value = 'example.com\n*.internal.com';
+    document.getElementById('excludedSelectors').value = '.no-translate\n[data-no-translate]';
 
     document.getElementById('save').click();
 

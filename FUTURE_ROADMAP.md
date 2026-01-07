@@ -170,7 +170,7 @@ This document tracks identified issues and planned improvements for the Immersiv
 ## Progress Tracking
 
 | ID | Issue | Priority | Status |
-|----|-------|----------|--------|
+| --- | --- | --- | --- |
 | 1 | DOMUtils.showError missing | P0 | ✅ Fixed |
 | 2 | onDone double-call | P0 | ✅ Fixed |
 | 3 | Popup silent failure | P0 | ✅ Fixed |
@@ -179,16 +179,15 @@ This document tracks identified issues and planned improvements for the Immersiv
 | 6 | Duplicate prompt | P1 | ✅ Fixed |
 | 7 | No URL validation | P1 | ✅ Fixed |
 | 8 | Dead code | P2 | ✅ Fixed |
-| 9 | Inconsistent defaults | P2 | 🔲 Pending |
+| 9 | Inconsistent defaults | P2 | ✅ Fixed |
 | 10 | Magic numbers | P2 | ✅ Fixed |
-| 11 | Hardcoded language | P3 | 🔲 Pending |
+| 11 | Hardcoded language | P3 | ✅ Fixed |
 | 12 | No language detection | P3 | 🔲 Pending |
 | 13 | No caching | P3 | 🔲 Pending |
 | 14 | No exclusion list | P3 | 🔲 Pending |
-| 15 | Extension icon/avatar not configured | P2 | 🔲 Pending |
+| 15 | Extension icon/avatar not configured | P2 | ✅ Fixed |
 | 16 | Preserve rich text formatting in translated output | P1 | 🔲 Pending |
-| 17 | Separate protocol/system prompt from user translation prompt | P1 | 🔲 Pending |
-| 18 | Built-in model presets (auto endpoint/params) | P1 | 🔲 Pending |
+| 17 | Separate protocol/system prompt from user translation prompt | P1 | ✅ Fixed |
+| 18 | Built-in model presets (auto endpoint/params) | P1 | ✅ Fixed |
 | 19 | Replace brittle min-length heuristic to avoid missing short texts | P1 | 🔲 Pending |
-| 20 | Settings UI redesign (modern + scalable) | P2 | 🔲 Pending |
-
+| 20 | Settings UI redesign (modern + scalable) | P2 | ✅ Fixed |

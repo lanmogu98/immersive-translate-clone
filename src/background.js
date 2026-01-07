@@ -2,6 +2,15 @@ chrome.runtime.onInstalled.addListener(() => {
     console.log('Immersive Translate Clone installed.');
 });
 
+// Load shared utils (no ESM; safe-guarded for Jest/Node)
+try {
+    if (typeof importScripts === 'function') {
+        importScripts('src/utils/prompt-templates.js');
+    }
+} catch (e) {
+    // ignore (tests / non-extension runtime)
+}
+
 // PDF Redirect Logic
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (changeInfo.status === 'loading' && tab.url && tab.url.toLowerCase().endsWith('.pdf')) {
@@ -35,10 +44,30 @@ const API_TIMEOUT_MS = 60000;
 const FALLBACK_PROMPT = 'Translate the following text into Simplified Chinese. Maintain the original format. Use %% as paragraph separator for multi-paragraph input.';
 
 async function streamTranslation(text, config, port) {
-    const { apiUrl, apiKey, modelName, customPrompt } = config;
+    const {
+        apiUrl,
+        apiKey,
+        modelName,
+        customPrompt, // legacy
+        userTranslationPrompt,
+        targetLanguage,
+    } = config;
 
-    // Use customPrompt from options, fall back to minimal prompt if empty
-    const systemPrompt = customPrompt || FALLBACK_PROMPT;
+    // Prefer building prompt from separated fields (Issue 17 + 11)
+    let systemPrompt = '';
+    if (globalThis.PromptTemplates && typeof globalThis.PromptTemplates.buildSystemPrompt === 'function') {
+        systemPrompt = globalThis.PromptTemplates.buildSystemPrompt({
+            userPrompt: userTranslationPrompt || '',
+            targetLanguage: targetLanguage || 'zh-CN',
+        });
+    } else {
+        // Fallback for older runtime / tests: use customPrompt if present
+        systemPrompt = customPrompt || '';
+    }
+
+    if (!systemPrompt) {
+        systemPrompt = FALLBACK_PROMPT;
+    }
 
     if (!apiKey) {
         port.postMessage({ error: 'API Key is missing.' });

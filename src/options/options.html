@@ -3,104 +3,104 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Settings - Immersive Translate Clone</title>
-    <style>
-        body {
-            padding: 40px;
-            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-            max-width: 600px;
-            margin: 0 auto;
-        }
-
-        h2 {
-            border-bottom: 1px solid #eee;
-            padding-bottom: 10px;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 500;
-        }
-
-        input[type="text"],
-        input[type="password"],
-        textarea {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            box-sizing: border-box;
-            font-family: inherit;
-            font-size: 14px;
-        }
-
-        textarea {
-            resize: vertical;
-            min-height: 100px;
-        }
-
-        .hint {
-            font-size: 12px;
-            color: #666;
-            margin-top: 4px;
-        }
-
-        button {
-            padding: 10px 20px;
-            background-color: #00b894;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-
-        button:hover {
-            background-color: #00a884;
-        }
-
-        .status {
-            margin-left: 10px;
-            color: #636e72;
-            font-size: 14px;
-        }
-    </style>
+    <link rel="stylesheet" href="options.css">
 </head>
 
 <body>
-    <h2>Settings</h2>
+    <div class="page">
+        <header class="page-header">
+            <div class="title-row">
+                <h1>Settings</h1>
+                <span class="badge">Immersive Translate Clone</span>
+            </div>
+            <p class="subtitle">Configure provider/model, translation preferences, and exclusions.</p>
+        </header>
 
-    <div class="form-group">
-        <label for="apiUrl">API Base URL</label>
-        <input type="text" id="apiUrl" placeholder="https://ark.cn-beijing.volces.com/api/v3">
-        <div class="hint">e.g. https://ark.cn-beijing.volces.com/api/v3, https://api.deepseek.com</div>
+        <section class="card">
+            <h2>🔌 Provider &amp; Model</h2>
+
+            <div class="grid">
+                <div class="field">
+                    <label for="providerId">Provider</label>
+                    <select id="providerId"></select>
+                    <div class="hint">Choose a provider to auto-fill endpoint and model list.</div>
+                </div>
+
+                <div class="field">
+                    <label for="modelId">Model</label>
+                    <select id="modelId"></select>
+                    <div class="hint">Model list depends on provider.</div>
+                </div>
+
+                <div class="field span-2">
+                    <label for="apiKey">API Key</label>
+                    <input type="password" id="apiKey" placeholder="sk-..." autocomplete="off">
+                    <div class="hint">Stored in <code>chrome.storage.sync</code>. Keep it private.</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>🌐 Translation</h2>
+            <div class="grid">
+                <div class="field">
+                    <label for="targetLanguage">Target Language</label>
+                    <select id="targetLanguage"></select>
+                </div>
+
+                <div class="field span-2">
+                    <label for="userTranslationPrompt">Style Prompt</label>
+                    <textarea id="userTranslationPrompt" rows="6" placeholder="e.g. 保持原文语气，流畅自然。术语保持一致。"></textarea>
+                    <div class="hint">Only controls style/tone. Output protocol is fixed internally.</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>🚫 Exclusions</h2>
+            <div class="grid">
+                <div class="field span-2">
+                    <label for="excludedDomains">Excluded Domains (one per line)</label>
+                    <textarea id="excludedDomains" rows="4" placeholder="example.com&#10;*.internal.com"></textarea>
+                    <div class="hint">Matches exact domain and subdomains. Wildcard supports <code>*.example.com</code>.</div>
+                </div>
+
+                <div class="field span-2">
+                    <label for="excludedSelectors">Excluded Selectors (one per line)</label>
+                    <textarea id="excludedSelectors" rows="4" placeholder=".no-translate&#10;[data-no-translate]&#10;#sidebar"></textarea>
+                    <div class="hint">Elements matching these selectors (or inside them) will be skipped.</div>
+                </div>
+            </div>
+        </section>
+
+        <details class="card advanced" id="advancedSection">
+            <summary>⚙️ Advanced</summary>
+            <div class="grid advanced-body">
+                <div class="field span-2">
+                    <label for="apiUrl">API Base URL</label>
+                    <input type="text" id="apiUrl" placeholder="https://ark.cn-beijing.volces.com/api/v3">
+                    <div class="hint">Auto-filled by Provider. Edit only when Provider is <strong>Custom</strong>.</div>
+                </div>
+
+                <div class="field span-2">
+                    <label for="modelName">Model ID</label>
+                    <input type="text" id="modelName" placeholder="deepseek-v3-2-251201">
+                    <div class="hint">Auto-filled by Provider. Edit only when Provider is <strong>Custom</strong>.</div>
+                </div>
+            </div>
+        </details>
+
+        <footer class="actions">
+            <button id="save" class="primary">Save Settings</button>
+            <span id="status" class="status" role="status" aria-live="polite"></span>
+        </footer>
     </div>
 
-    <div class="form-group">
-        <label for="apiKey">API Key</label>
-        <input type="password" id="apiKey" placeholder="sk-...">
-    </div>
-
-    <div class="form-group">
-        <label for="modelName">Model Name</label>
-        <input type="text" id="modelName" placeholder="deepseek-v3-2-251201">
-        <div class="hint">e.g. deepseek-v3-2-251201, gpt-4o, deepseek-chat</div>
-    </div>
-
-    <div class="form-group">
-        <label for="customPrompt">System Prompt</label>
-        <textarea id="customPrompt" rows="8" placeholder="Enter custom translation prompt..."></textarea>
-        <div class="hint">Customize how the AI translates. Leave empty to use default.</div>
-    </div>
-
-    <button id="save">Save Settings</button>
-    <span id="status" class="status"></span>
-
+    <!-- Load utils first (no ESM) -->
+    <script src="../utils/model-registry.js"></script>
+    <script src="../utils/prompt-templates.js"></script>
     <script src="options.js"></script>
 </body>
 

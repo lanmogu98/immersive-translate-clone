@@ -188,7 +188,9 @@ async function runTranslationProcess() {
             apiUrl: 'https://ark.cn-beijing.volces.com/api/v3',
             apiKey: '',
             modelName: 'deepseek-v3-2-251201',
-            customPrompt: ''
+            customPrompt: '',
+            targetLanguage: 'zh-CN',
+            userTranslationPrompt: ''
         });
 
         const llmClient = new LLMClient(config);

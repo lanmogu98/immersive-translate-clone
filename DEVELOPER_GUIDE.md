@@ -9,11 +9,15 @@ This document outlines the architecture, coding standards, and documentation mai
   ├── background.js      # Service Worker: Handles API Proxying & Tab events
   ├── content.js         # Content Script: Core logic (Scanning, Batching, Messaging)
   ├── content.css        # Styles for the injected translation nodes
-  ├── options/           # Settings UI (API Key, Prompts)
+  ├── options/           # Settings UI (Provider/Model, API Key, Language, Exclusions)
   ├── pdf-viewer/        # (Planned) Modified PDF.js viewer
   └── utils/
       ├── dom-utils.js   # Pure DOM manipulation helpers (Side-effect free where possible)
-      └── llm-client.js  # Bridge between Content Script and Background Service
+      ├── llm-client.js  # Bridge between Content Script and Background Service
+      ├── prompt-templates.js  # Protocol prompt + user prompt combiner (UMD-style)
+      ├── model-registry.js    # Provider/model registry + auto endpoint resolution (UMD-style)
+      ├── lang-detect.js       # Simple source-language heuristic (UMD-style)
+      └── translation-cache.js # LRU translation cache utility (UMD-style)
 
 /tests                  # Jest unit tests (jsdom + chrome mocks)
 jest.config.cjs         # Jest configuration
@@ -32,6 +36,11 @@ package.json            # Dev dependencies + test scripts
     -   Separator: `\n%%\n`.
     -   The LLM **MUST** return exact paragraph correspondence separated by `%%`.
     -   The Frontend **MUST** parse this stream and distribute text to the correct nodes.
+4.  **Shared Utils (No ESM)**:
+    -   `src/utils/*.js` are written in a UMD-like style:
+        -   Extension runtime: attach APIs to `globalThis`
+        -   Jest/Node: export via `module.exports`
+    -   Options page loads utils via `<script>` tags; background service worker loads via `importScripts(...)` (guarded in tests).
 
 ## Documentation Protocol (CRITICAL)
 

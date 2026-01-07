@@ -26,12 +26,19 @@ Before using the extension, you must configure your API credentials.
 
 1.  Click the extension icon in the toolbar.
 2.  Click **Options** (or right-click the icon > Options).
-3.  **API Settings**:
-    *   **API URL**: Enter the base URL of your model provider (e.g., `https://ark.cn-beijing.volces.com/api/v3` or `https://api.openai.com/v1`).
+3.  **Provider & Model**:
+    *   **Provider**: Select a provider (e.g., Volcengine Ark / DeepSeek / OpenAI / Custom).
+    *   **Model**: Select a preset model for that provider.
     *   **API Key**: Enter your secret API Key.
-    *   **Model Name**: Enter the model ID (e.g., `deepseek-v3-2-251201` or `gpt-4o`).
-4.  **Custom Prompt** (Optional): You can customize the system prompt, but the default one is optimized for the "Immersive Protocol".
-5.  Click **Save**.
+4.  **Translation**:
+    *   **Target Language**: Choose the output language (default: Simplified Chinese).
+    *   **Style Prompt** (Optional): Customize translation style/tone. Protocol rules are internal and not user-editable.
+5.  **Exclusions** (Optional):
+    *   **Excluded Domains**: One domain pattern per line (supports `*.example.com`).
+    *   **Excluded Selectors**: One CSS selector per line (matching elements/ancestors will be skipped).
+6.  **Advanced**:
+    *   **API Base URL / Model ID**: Auto-filled by Provider; editable when Provider is **Custom**.
+7.  Click **Save Settings**.
 
 ## Usage
 

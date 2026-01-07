@@ -116,6 +116,50 @@ class DOMUtils {
         node.textContent = `[Error: ${message}]`;
         node.classList.add('immersive-translate-error');
     }
+
+    /**
+     * Extract all text nodes from an element (depth-first traversal)
+     * Used for rich text preservation - translates text nodes while keeping markup
+     * 
+     * @param {Element} element - The element to extract text nodes from
+     * @returns {Text[]} Array of Text nodes in document order
+     */
+    static extractTextNodes(element) {
+        const textNodes = [];
+        const walker = document.createTreeWalker(
+            element,
+            NodeFilter.SHOW_TEXT,
+            null,
+            false
+        );
+        
+        let node;
+        while ((node = walker.nextNode())) {
+            // Include all text nodes, even whitespace-only
+            // Filter empty ones but keep whitespace for formatting
+            textNodes.push(node);
+        }
+        
+        return textNodes;
+    }
+
+    /**
+     * Apply translations to corresponding text nodes
+     * Preserves HTML structure while replacing text content
+     * 
+     * @param {Text[]} textNodes - Array of text nodes to update
+     * @param {string[]} translations - Array of translated strings (same order as textNodes)
+     */
+    static applyTranslationToTextNodes(textNodes, translations) {
+        const len = Math.min(textNodes.length, translations.length);
+        
+        for (let i = 0; i < len; i++) {
+            if (textNodes[i] && translations[i] !== undefined) {
+                textNodes[i].textContent = translations[i];
+            }
+        }
+        // Text nodes beyond translations.length are left unchanged
+    }
 }
 
 // Node.js test support (no effect in extension runtime)
