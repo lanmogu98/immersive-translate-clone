@@ -20,6 +20,7 @@ All notable changes to this project will be documented in this file.
 -   **Model Presets**: Added provider/model presets via `src/utils/model-registry.js` (auto endpoint + model id resolution).
 -   **Prompt Templates**: Added `src/utils/prompt-templates.js` for protocol prompt + user translation prompt composition.
 -   **Target Language**: Added target language selector in settings; prompt composition includes target language.
+-   **Exclusions**: Added exclusion rules (domains + CSS selectors) to skip translation on configured sites/elements.
 -   **Icons**: Added `icons` and `action.default_icon` in `manifest.json` for proper extension icon rendering.
 
 ### Changed

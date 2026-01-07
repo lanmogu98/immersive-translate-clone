@@ -15,6 +15,8 @@ class DOMUtils {
 
     static getTranslatableElements() {
         const elements = [];
+        const options = arguments.length > 0 ? arguments[0] : undefined;
+        const excludedSelectors = (options && Array.isArray(options.excludedSelectors)) ? options.excludedSelectors : [];
         // Enhanced selector to include lists, blockquotes, and captions
         const candidates = document.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, blockquote, td, div, figcaption, dt, dd');
 
@@ -25,6 +27,11 @@ class DOMUtils {
             // Prevent translating our own elements
             if (element.classList.contains('immersive-translate-target')) continue;
             if (element.closest('.immersive-translate-target')) continue;
+
+            // User-defined selector exclusions
+            if (excludedSelectors.length > 0 && this.isExcludedBySelector(element, excludedSelectors)) {
+                continue;
+            }
 
             // Skip navigation bars if possible (simple heuristic: common nav class/id substrings or role)
             // This is hard to get perfect universally without complex logic.
@@ -43,6 +50,18 @@ class DOMUtils {
             }
         }
         return elements;
+    }
+
+    static isExcludedBySelector(element, selectors) {
+        if (!selectors || !Array.isArray(selectors) || !element) return false;
+        return selectors.some((sel) => {
+            try {
+                return element.matches(sel) || element.closest(sel) !== null;
+            } catch (e) {
+                // Invalid selector should not break scanning
+                return false;
+            }
+        });
     }
 
     static hasDirectText(element) {

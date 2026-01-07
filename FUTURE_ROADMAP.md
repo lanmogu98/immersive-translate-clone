@@ -184,7 +184,7 @@ This document tracks identified issues and planned improvements for the Immersiv
 | 11 | Hardcoded language | P3 | ✅ Fixed |
 | 12 | No language detection | P3 | 🔲 Pending |
 | 13 | No caching | P3 | 🔲 Pending |
-| 14 | No exclusion list | P3 | 🔲 Pending |
+| 14 | No exclusion list | P3 | ✅ Fixed |
 | 15 | Extension icon/avatar not configured | P2 | ✅ Fixed |
 | 16 | Preserve rich text formatting in translated output | P1 | 🔲 Pending |
 | 17 | Separate protocol/system prompt from user translation prompt | P1 | ✅ Fixed |

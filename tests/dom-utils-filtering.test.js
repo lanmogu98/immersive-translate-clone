@@ -224,6 +224,28 @@ describe('DOMUtils - Smart Filtering (shouldTranslate)', () => {
     });
   });
 
+  describe('selector exclusions (Issue 14)', () => {
+    test('should skip elements matching excludedSelectors', () => {
+      document.body.innerHTML = `
+        <p id="skip" class="no-translate">This text should be skipped.</p>
+        <p id="keep">This text should be translated.</p>
+      `;
+      makeAllVisible('p');
+
+      const elements = DOMUtils.getTranslatableElements({ excludedSelectors: ['.no-translate'] });
+      expect(elements.find(e => e.element.id === 'skip')).toBeUndefined();
+      expect(elements.find(e => e.element.id === 'keep')).toBeDefined();
+    });
+
+    test('should handle invalid selector gracefully', () => {
+      document.body.innerHTML = `<p id="keep">This text should be translated.</p>`;
+      makeAllVisible('p');
+
+      const elements = DOMUtils.getTranslatableElements({ excludedSelectors: ['[invalid'] });
+      expect(elements.find(e => e.element.id === 'keep')).toBeDefined();
+    });
+  });
+
   describe('regression: existing behavior', () => {
     test('should still translate paragraphs longer than 8 chars', () => {
       const p = document.createElement('p');
