@@ -42,7 +42,7 @@ const showStatus = (message, isError = false) => {
 // Default configuration values (single source of truth for defaults)
 const DEFAULT_CONFIG = {
     // New fields for UI state
-    providerId: 'volcengine',
+    providerId: 'deepseek-volcengine',
     modelId: 'deepseek-v3-2-251201',
     targetLanguage: 'zh-CN',
     userTranslationPrompt: '',
@@ -50,7 +50,7 @@ const DEFAULT_CONFIG = {
     excludedSelectors: [],
 
     // Compatibility fields used by content/background today
-    apiUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+    apiUrl: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions',
     apiKey: '',
     modelName: 'deepseek-v3-2-251201',
 

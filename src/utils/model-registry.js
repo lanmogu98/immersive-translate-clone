@@ -68,13 +68,46 @@ function getProviderName(providerId) {
 }
 
 /**
+ * Get full provider configuration
+ * @param {string} providerId - Provider ID
+ * @returns {Object|null} Provider configuration or null
+ */
+function getProvider(providerId) {
+    return MODEL_REGISTRY[providerId] || null;
+}
+
+/**
  * Get models for a specific provider
  * @param {string} providerId - Provider ID
- * @returns {Array<{id: string, name: string}>} Array of model objects
+ * @returns {Array<{key: string, id: string, name: string, pricing: Object}>} Array of model objects
  */
 function getModelsForProvider(providerId) {
     const provider = MODEL_REGISTRY[providerId];
     return provider ? provider.models : [];
+}
+
+/**
+ * Get provider's default settings (temperature, maxTokens, etc.)
+ * @param {string} providerId - Provider ID
+ * @returns {Object} Default settings
+ */
+function getProviderDefaults(providerId) {
+    const provider = MODEL_REGISTRY[providerId];
+    if (!provider) {
+        return {
+            temperature: 0.6,
+            maxTokens: 4096,
+            contextWindow: 128000
+        };
+    }
+    return {
+        temperature: provider.temperature ?? 0.6,
+        maxTokens: provider.maxTokens ?? 4096,
+        contextWindow: provider.contextWindow ?? 128000,
+        pricingCurrency: provider.pricingCurrency || '$',
+        rateLimit: provider.rateLimit || null,
+        requestOverrides: provider.requestOverrides || null
+    };
 }
 
 /**
@@ -97,14 +130,26 @@ function resolveConfig(providerId, modelId, apiKey, customUrl, customModel) {
         return {
             apiUrl: (customUrl || '').trim(),
             modelName: (customModel || '').trim(),
-            apiKey: apiKey
+            apiKey: apiKey,
+            temperature: provider.temperature ?? 0.6,
+            maxTokens: provider.maxTokens ?? 4096
         };
     }
+    
+    // Find model config for pricing info
+    const modelConfig = provider.models.find(m => m.id === modelId) || {};
     
     return {
         apiUrl: provider.baseUrl,
         modelName: modelId,
-        apiKey: apiKey
+        apiKey: apiKey,
+        temperature: provider.temperature ?? 0.6,
+        maxTokens: provider.maxTokens ?? 4096,
+        contextWindow: provider.contextWindow ?? 128000,
+        pricingCurrency: provider.pricingCurrency || '$',
+        pricing: modelConfig.pricing || { input: 0, output: 0 },
+        rateLimit: provider.rateLimit || null,
+        requestOverrides: provider.requestOverrides || null
     };
 }
 
@@ -123,7 +168,9 @@ const ModelRegistry = {
     MODEL_REGISTRY,
     getProviders,
     getProviderName,
+    getProvider,
     getModelsForProvider,
+    getProviderDefaults,
     resolveConfig,
     getDefaultModel
 };

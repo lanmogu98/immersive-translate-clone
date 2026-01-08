@@ -18,6 +18,63 @@ const YAML_PATH = path.join(ROOT_DIR, 'llm_config.yml');
 const JSON_PATH = path.join(ROOT_DIR, 'llm_config.json');
 const GENERATED_JS_PATH = path.join(ROOT_DIR, 'src/utils/llm-config.generated.js');
 
+/**
+ * Transform raw YAML config to extension-friendly format
+ * - Filters out internal keys (starting with _)
+ * - Converts models from object to array format
+ * - Adds default values for optional fields
+ */
+function transformConfig(rawConfig) {
+    const providers = {};
+
+    for (const [providerId, providerConfig] of Object.entries(rawConfig)) {
+        // Skip internal/shared entries (e.g., _shared_endpoints)
+        if (providerId.startsWith('_')) {
+            continue;
+        }
+
+        // Skip if not a valid provider object
+        if (!providerConfig || typeof providerConfig !== 'object') {
+            continue;
+        }
+
+        // Transform models from object to array
+        const modelsObj = providerConfig.models || {};
+        const modelsArray = [];
+        
+        for (const [modelKey, modelConfig] of Object.entries(modelsObj)) {
+            if (!modelConfig || typeof modelConfig !== 'object') {
+                continue;
+            }
+            modelsArray.push({
+                key: modelKey,
+                id: modelConfig.id || modelKey,
+                name: modelConfig.name || modelConfig.id || modelKey,
+                pricing: modelConfig.pricing || { input: 0, output: 0 }
+            });
+        }
+
+        // Build provider entry with all fields
+        providers[providerId] = {
+            name: providerConfig.name || providerId,
+            apiKeyEnvVar: providerConfig.api_key_env_var || '',
+            baseUrl: providerConfig.api_base_url || '',
+            temperature: providerConfig.temperature ?? 0.6,
+            maxTokens: providerConfig.max_tokens ?? 4096,
+            contextWindow: providerConfig.context_window ?? 128000,
+            pricingCurrency: providerConfig.pricing_currency || '$',
+            rateLimit: providerConfig.rate_limit ? {
+                minIntervalSeconds: providerConfig.rate_limit.min_interval_seconds ?? 0.5,
+                maxRequestsPerMinute: providerConfig.rate_limit.max_requests_per_minute ?? 60
+            } : null,
+            requestOverrides: providerConfig.request_overrides || null,
+            models: modelsArray
+        };
+    }
+
+    return { providers };
+}
+
 function validateConfig(config) {
     if (!config || !config.providers) {
         throw new Error('Invalid config structure. Expected { providers: {...} }');
@@ -33,9 +90,10 @@ function validateConfig(config) {
         if (!Array.isArray(provider.models)) {
             throw new Error(`Provider "${id}" missing or invalid "models" array`);
         }
+        // Validate models (can be empty for custom provider)
         for (const model of provider.models) {
-            if (!model.id || !model.name) {
-                throw new Error(`Model in provider "${id}" missing "id" or "name"`);
+            if (!model.id) {
+                throw new Error(`Model in provider "${id}" missing "id"`);
             }
         }
     }
@@ -52,14 +110,17 @@ function main() {
 
     const yamlContent = fs.readFileSync(YAML_PATH, 'utf8');
 
-    // Parse YAML
-    let config;
+    // Parse YAML (js-yaml automatically resolves anchors)
+    let rawConfig;
     try {
-        config = yaml.load(yamlContent);
+        rawConfig = yaml.load(yamlContent);
     } catch (e) {
         console.error(`Error parsing YAML: ${e.message}`);
         process.exit(1);
     }
+
+    // Transform to extension-friendly format
+    const config = transformConfig(rawConfig);
 
     // Validate
     try {
@@ -94,7 +155,10 @@ function main() {
     fs.writeFileSync(GENERATED_JS_PATH, jsContent, 'utf8');
     console.log(`✓ Generated ${path.relative(ROOT_DIR, GENERATED_JS_PATH)}`);
 
-    console.log(`  Providers: ${Object.keys(config.providers).join(', ')}`);
+    // Summary
+    const providerCount = Object.keys(config.providers).length;
+    const modelCount = Object.values(config.providers).reduce((sum, p) => sum + p.models.length, 0);
+    console.log(`  Providers: ${providerCount}, Models: ${modelCount}`);
 }
 
 main();

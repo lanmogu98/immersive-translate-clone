@@ -76,7 +76,7 @@ describe('options page', () => {
 
     document.dispatchEvent(new Event('DOMContentLoaded'));
 
-    expect(document.getElementById('apiUrl').value).toBe('https://ark.cn-beijing.volces.com/api/v3');
+    expect(document.getElementById('apiUrl').value).toBe('https://ark.cn-beijing.volces.com/api/v3/chat/completions');
     expect(document.getElementById('modelName').value).toBe('deepseek-v3-2-251201');
   });
 });

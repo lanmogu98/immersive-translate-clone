@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 -   **External LLM Config (Issue 21)**: Model registry now loads from `llm_config.yml` (single source of truth). Build script converts YAML → JSON for runtime. Edit `llm_config.yml` and run `npm run build:config` to update providers/models.
+-   **Extended Config Format (Issue 21)**: Config now supports `temperature`, `max_tokens`, `context_window`, `pricing`, `rate_limit`, and `request_overrides` per provider. YAML anchors supported for shared endpoints.
 -   **URL Validation**: Options page now validates API URL format before saving.
 -   **Input Validation**: Options page validates required fields (API Key, Model Name) before saving.
 -   **Test Suite**: Added Jest + jsdom unit tests (with `chrome.*` mocks) to cover key extension flows and roadmap fixes.

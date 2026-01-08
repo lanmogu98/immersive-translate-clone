@@ -140,7 +140,7 @@ describe('Options Defaults Consistency (Issue 9)', () => {
       document.dispatchEvent(new Event('DOMContentLoaded'));
 
       const apiUrl = document.getElementById('apiUrl').value;
-      expect(apiUrl).toBe('https://ark.cn-beijing.volces.com/api/v3');
+      expect(apiUrl).toBe('https://ark.cn-beijing.volces.com/api/v3/chat/completions');
     });
 
     test('should populate modelName from DEFAULT_CONFIG when storage is empty', () => {

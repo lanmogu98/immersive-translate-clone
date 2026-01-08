@@ -88,7 +88,9 @@ async function streamTranslation(text, config, port) {
     }, API_TIMEOUT_MS);
 
     try {
-        const response = await fetch(`${apiUrl}/chat/completions`, {
+        // Use apiUrl as-is if it already contains endpoint path, otherwise append
+        const endpoint = apiUrl.endsWith('/chat/completions') ? apiUrl : `${apiUrl}/chat/completions`;
+        const response = await fetch(endpoint, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
