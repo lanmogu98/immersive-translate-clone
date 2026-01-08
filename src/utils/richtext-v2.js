@@ -29,7 +29,9 @@ function shallowClonePreservingAttrs(el) {
 }
 
 function makeToken(id, isClose = false) {
-  return isClose ? `[[/ITC:${id}]]` : `[[ITC:${id}]]`;
+  // Close token is generic on purpose (no id): models frequently corrupt close ids.
+  // We still accept legacy close tokens like [[/ITC:a0]] when parsing.
+  return isClose ? `[[/ITC]]` : `[[ITC:${id}]]`;
 }
 
 function tokenizeElement(element) {
@@ -90,21 +92,46 @@ function tokenizeElement(element) {
   };
 }
 
+function stripCodeFences(text) {
+  const s = (text || '').trim();
+  if (!s.startsWith('```')) return s;
+  const withoutFirstLine = s.split('\n').slice(1).join('\n');
+  const lastFence = withoutFirstLine.lastIndexOf('```');
+  if (lastFence === -1) return withoutFirstLine.trim();
+  return withoutFirstLine.slice(0, lastFence).trim();
+}
+
+function normalizeOutput(output) {
+  let s = (output || '').trim();
+  // Some models echo the marker; strip it if present.
+  if (s.startsWith(RICH_V2_MARKER)) {
+    s = s.slice(RICH_V2_MARKER.length).trim();
+  }
+  s = stripCodeFences(s);
+  return s.trim();
+}
+
 function tokenizeOutput(output) {
-  const s = (output || '').trim();
-  const re = /\[\[\/?ITC:([a-z]+[0-9]+)\]\]/g;
+  const s = normalizeOutput(output);
+  // Supports:
+  // - open:  [[ITC:a0]]
+  // - close: [[/ITC]] or legacy [[/ITC:a0]]
+  const re = /\[\[(\/)?ITC(?::([a-z]+[0-9]+))?\]\]/g;
   const items = [];
   let last = 0;
   let m;
   while ((m = re.exec(s)) !== null) {
     const start = m.index;
     const full = m[0];
-    const id = m[1];
+    const isClose = !!m[1];
+    const id = m[2];
     if (start > last) items.push({ type: 'text', value: s.slice(last, start) });
-    const isClose = full.startsWith('[[/ITC:');
-    const isOpen = full.startsWith('[[ITC:') && !isClose;
-    if (isClose) items.push({ type: 'close', id });
-    else if (isOpen) items.push({ type: 'open', id });
+    if (isClose) {
+      items.push({ type: 'close', id: id || null, raw: full });
+    } else {
+      // Open token must have an id; otherwise treat as invalid (will fail validation).
+      items.push({ type: 'open', id: id || null, raw: full });
+    }
     last = start + full.length;
   }
   if (last < s.length) items.push({ type: 'text', value: s.slice(last) });
@@ -115,40 +142,48 @@ function validateAndClassifyItems(items, tokenMap) {
   const stack = [];
   const seenAtomic = new Set();
   const expectedIds = new Set(Object.keys(tokenMap || {}));
+  let closeCount = 0;
+  let openPairedCount = 0;
 
   for (const it of items) {
     if (it.type === 'text') continue;
-    const entry = tokenMap[it.id];
-    if (!entry) return { ok: false, reason: `unknown token: ${it.id}` };
+    if (it.type === 'open' && !it.id) return { ok: false, reason: 'open token missing id' };
+    if (it.type === 'open') {
+      const entry = tokenMap[it.id];
+      if (!entry) return { ok: false, reason: `unknown token: ${it.id}` };
 
-    if (entry.kind === 'atomic') {
-      // Atomic tokens must be referenced exactly once, as an "open" token.
-      if (it.type !== 'open') return { ok: false, reason: `atomic token used as close: ${it.id}` };
-      if (seenAtomic.has(it.id)) return { ok: false, reason: `atomic token duplicated: ${it.id}` };
-      seenAtomic.add(it.id);
-      it.type = 'atomic';
+      if (entry.kind === 'atomic') {
+        if (seenAtomic.has(it.id)) return { ok: false, reason: `atomic token duplicated: ${it.id}` };
+        seenAtomic.add(it.id);
+        it.type = 'atomic';
+        continue;
+      }
+
+      // Paired open
+      openPairedCount++;
+      stack.push(it.id);
       continue;
     }
 
-    // Paired tokens
-    if (it.type === 'open') {
-      stack.push(it.id);
-    } else if (it.type === 'close') {
+    // Close token: generic (id optional). Pop last paired open.
+    if (it.type === 'close') {
+      closeCount++;
       const top = stack.pop();
-      if (top !== it.id) return { ok: false, reason: `nesting mismatch: ${top} vs ${it.id}` };
-    } else {
-      return { ok: false, reason: `invalid token event: ${it.type}` };
+      if (!top) return { ok: false, reason: 'close token without open' };
+      continue;
     }
+    return { ok: false, reason: `invalid token event: ${it.type}` };
   }
 
   if (stack.length) return { ok: false, reason: `unclosed token: ${stack[stack.length - 1]}` };
+  if (closeCount !== openPairedCount) return { ok: false, reason: 'close/open count mismatch' };
 
   // Ensure every expected token appears at least once in output.
-  // For paired tokens we require both open+close; for atomic, one occurrence.
+  // For paired tokens we require open occurrence; for atomic, one occurrence.
   const counts = {};
   for (const it of items) {
     if (it.type === 'text') continue;
-    counts[it.id] = (counts[it.id] || 0) + 1;
+    if (it.id) counts[it.id] = (counts[it.id] || 0) + 1;
   }
   for (const id of expectedIds) {
     const entry = tokenMap[id];
@@ -156,7 +191,7 @@ function validateAndClassifyItems(items, tokenMap) {
     if (entry.kind === 'atomic') {
       if (c !== 1) return { ok: false, reason: `atomic token missing/extra: ${id}` };
     } else {
-      if (c !== 2) return { ok: false, reason: `paired token missing/extra: ${id}` };
+      if (c !== 1) return { ok: false, reason: `paired token missing/extra: ${id}` };
     }
   }
 

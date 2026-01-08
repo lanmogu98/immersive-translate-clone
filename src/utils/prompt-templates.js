@@ -50,7 +50,7 @@ const PROTOCOL_PROMPT = `You are a professional translator. Translate the input 
 ## RICH TEXT MODE (V2 Token Protocol):
 - If a paragraph starts with the marker [[ITC_RICH_V2]], the next line will contain plain text with immutable tokens.
 - Tokens look like:
-  - Paired tokens wrapping translatable content: [[ITC:a0]] ... [[/ITC:a0]]
+  - Paired tokens wrapping translatable content: [[ITC:a0]] ... [[/ITC]]
   - Atomic tokens (must be preserved exactly once, do not edit): [[ITC:ref0]]
 - Your output for that paragraph MUST be plain translated text that still contains ALL the same tokens:
   - Do NOT output HTML or Markdown

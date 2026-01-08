@@ -12,7 +12,7 @@ describe('richtext v2 (token protocol)', () => {
     const t = RichTextV2.tokenizeElement(p);
     expect(t.marker).toBe('[[ITC_RICH_V2]]');
     expect(t.text).toContain('[[ITC:a0]]');
-    expect(t.text).toContain('[[/ITC:a0]]');
+    expect(t.text).toContain('[[/ITC]]');
     expect(t.text).toContain('[[ITC:ref0]]');
     expect(t.tokenMap.a0).toBeDefined();
     expect(t.tokenMap.a0.clone.getAttribute('href')).toBe('/wiki/Brenham');
@@ -30,7 +30,7 @@ describe('richtext v2 (token protocol)', () => {
     const t = RichTextV2.tokenizeElement(p);
 
     // Model reorders: move the link earlier and keep footnote atomic token
-    const out = `他就读于[[ITC:a0]]布伦汉姆[[/ITC:a0]]高中[[ITC:ref0]]。`;
+    const out = `他就读于[[ITC:a0]]布伦汉姆[[/ITC]]高中[[ITC:ref0]]。`;
 
     const root = document.createElement('span');
     const ok = RichTextV2.renderToNode(root, t, out);
@@ -55,6 +55,21 @@ describe('richtext v2 (token protocol)', () => {
     const ok = RichTextV2.renderToNode(root, t, '你好 world'); // missing [[ITC:a0]]...
     expect(ok).toBe(false);
     expect(root.textContent).toBe('keep');
+  });
+
+  test('render: strips echoed marker and still renders tokens', () => {
+    document.body.innerHTML = `<p id="p">Hello <a href="/x">world</a>.</p>`;
+    const p = document.getElementById('p');
+    const t = RichTextV2.tokenizeElement(p);
+
+    const root = document.createElement('span');
+    const out = `[[ITC_RICH_V2]]\\n你好 [[ITC:a0]]世界[[/ITC]]。`;
+    const ok = RichTextV2.renderToNode(root, t, out);
+    expect(ok).toBe(true);
+    expect(root.textContent).not.toContain('[[ITC_RICH_V2]]');
+    const link = root.querySelector('a');
+    expect(link).not.toBeNull();
+    expect(link.getAttribute('href')).toBe('/x');
   });
 });
 

@@ -38,6 +38,14 @@ describe('prompt-templates', () => {
       // Should mention translation output rules
       expect(PromptTemplates.PROTOCOL_PROMPT.toLowerCase()).toMatch(/translat/);
     });
+
+    test('should document RichText V2 marker + token rules', () => {
+      expect(PromptTemplates).not.toBeNull();
+      expect(PromptTemplates.PROTOCOL_PROMPT).toContain('[[ITC_RICH_V2]]');
+      expect(PromptTemplates.PROTOCOL_PROMPT).toContain('[[ITC:a0]]');
+      expect(PromptTemplates.PROTOCOL_PROMPT).toContain('[[/ITC]]');
+      expect(PromptTemplates.PROTOCOL_PROMPT).toContain('[[ITC:ref0]]');
+    });
   });
 
   describe('DEFAULT_USER_PROMPT constant', () => {

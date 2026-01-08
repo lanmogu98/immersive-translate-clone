@@ -92,10 +92,10 @@ describe('content translateBatch (richtext v2 token protocol)', () => {
         // Ensure the request uses RichText V2 marker + token syntax
         expect(text).toContain('[[ITC_RICH_V2]]');
         expect(text).toContain('[[ITC:a0]]');
-        expect(text).toContain('[[/ITC:a0]]');
+        expect(text).toContain('[[/ITC]]');
         expect(text).toContain('[[ITC:ref0]]');
 
-        onChunk('他就读于[[ITC:a0]]布伦汉姆[[/ITC:a0]]高中[[ITC:ref0]]。');
+        onChunk('[[ITC_RICH_V2]]\\n他就读于[[ITC:a0]]布伦汉姆[[/ITC]]高中[[ITC:ref0]]。');
         onDone();
       },
     };
