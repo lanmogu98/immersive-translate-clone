@@ -19,7 +19,7 @@ This is the **high-signal entrypoint** for near-term work.
 
 | ID | Priority | Item | Status |
 | --- | --- | --- | --- |
-| 16 | P1 | Preserve rich text formatting in translated output | 🔲 Pending |
+| 16 | P1 | Preserve rich text formatting in translated output | ✅ Done |
 | 19 | P1 | Replace brittle min-length heuristic to avoid missing short texts | ✅ Done |
 | 21 | P1 | Model selection driven by `llm_config.yml` (single source of truth) | 🔲 Pending |
 | 25 | P1 | Prompt injection 防护：将网页内容视为不可信输入（LLM security hardening） | 🔲 Pending |

@@ -25,6 +25,7 @@
 
 ## ✅ 近期已完成（用于收敛 Now 列表）
 
+- **Issue 16**: RichText V2（Token 协议）落地：保留 `<a href>` / 内联格式 / Wikipedia 脚注引用；允许 token 块重排以改善语序；失败安全回退
 - **Issue 22**: Prompt 迁移改为“旧默认 prompt 严格相等”判定（不再用 substring signature）
 - **Issue 23**: 排除逻辑测试改为覆盖真实实现（不再测 test helper）
 - **Issue 24**: 明确 `extractTextNodes()` 语义：**过滤 whitespace-only 文本节点**，避免富文本映射对齐漂移

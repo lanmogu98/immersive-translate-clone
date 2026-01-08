@@ -6,8 +6,9 @@ A lightweight Chrome Extension that provides "Immersive Translate" style bilingu
 
 - **In-Place Translation**: Displays translated text as a bilingual contrast directly below the original paragraph.
 - **Smart Batching**: Groups paragraphs to preserve context and reduce API requests.
-- **Stream Rendering**: Real-time typing effect for immediate feedback.
+- **Stream Rendering**: Real-time typing effect for immediate feedback (plain-text paragraphs). Rich-text paragraphs apply when the paragraph is complete to avoid token flicker.
 - **Style Inheritance**: Automatically matches the font size, weight, and alignment of the source text.
+- **Rich Text Preservation (Issue 16)**: Preserves links (`<a href>`), inline formatting, and Wikipedia-style footnote references via a safe **token protocol** (the model does **not** output HTML).
 - **Privacy Focused**: No data is sent to our servers. Your API Key is stored locally in your browser.
 
 ## Installation

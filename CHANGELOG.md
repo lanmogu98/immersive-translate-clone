@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased] - 2026-01-06
+## [Unreleased] - 2026-01-08
 
 ### Fixed
 -   **P0: Missing Method**: Added `DOMUtils.showError()` method that was being called but didn't exist, causing runtime errors on batch translation failures.
@@ -23,6 +23,7 @@ All notable changes to this project will be documented in this file.
 -   **Source Language Detection**: Skip scanning paragraphs that are already Chinese when target language is `zh-*` (simple CJK-ratio heuristic).
 -   **Exclusions**: Added exclusion rules (domains + CSS selectors) to skip translation on configured sites/elements.
 -   **Icons**: Added `icons` and `action.default_icon` in `manifest.json` for proper extension icon rendering.
+-   **Rich Text (Issue 16)**: Added RichText V2 token protocol to preserve `<a href>`, inline formatting, and Wikipedia-style footnote references without asking the model to output HTML.
 
 ### Changed
 -   **Prompt Architecture**: Removed duplicate default prompt from `background.js`. Now uses prompt from options config with minimal fallback.
@@ -30,6 +31,9 @@ All notable changes to this project will be documented in this file.
 -   **Background Prompt Build**: Background now prefers `PromptTemplates.buildSystemPrompt({ userPrompt, targetLanguage })` when available (with legacy fallback).
 -   **Options Migration**: Options page migrates legacy `customPrompt` → `userTranslationPrompt` when the new field is empty.
 -   **Scan Heuristics**: Improved DOM scanning to include short main-content strings, and skip navigation areas / interactive UI chrome by default.
+
+### Fixed
+-   **Rich Text (Issue 16)**: Hardened RichText V2 parsing to strip echoed `[[ITC_RICH_V2]]` / code fences and tolerate close-token corruption via generic `[[/ITC]]` closes.
 
 ---
 
