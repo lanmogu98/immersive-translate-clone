@@ -47,6 +47,19 @@ const PROTOCOL_PROMPT = `You are a professional translator. Translate the input 
 4. Preserve HTML tags in appropriate positions while maintaining fluency
 5. Keep untranslatable content (proper nouns, code, URLs) as-is
 
+## RICH TEXT MODE (V2 Token Protocol):
+- If a paragraph starts with the marker [[ITC_RICH_V2]], the next line will contain plain text with immutable tokens.
+- Tokens look like:
+  - Paired tokens wrapping translatable content: [[ITC:a0]] ... [[/ITC]]
+  - Atomic tokens (must be preserved exactly once, do not edit): [[ITC:ref0]]
+- Your output for that paragraph MUST be plain translated text that still contains ALL the same tokens:
+  - Do NOT output HTML or Markdown
+  - Do NOT wrap output in code fences
+  - Do NOT add any other text besides the translation
+  - You MAY reorder/move token blocks to make the translation natural
+  - You MUST keep token strings EXACTLY unchanged (spelling/case/punctuation)
+  - You MUST NOT delete or duplicate any token (especially [[ITC:refN]] footnote tokens)
+
 ## OUTPUT FORMAT:
 - Single paragraph → Output translation directly
 - Multiple paragraphs → Use %% as separator between translations`;

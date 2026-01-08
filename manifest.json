@@ -36,6 +36,7 @@
         "src/utils/llm-client.js", 
         "src/utils/lang-detect.js",
         "src/utils/dom-utils.js", 
+        "src/utils/richtext-v2.js",
         "src/content.js"
       ],
       "css": ["src/content.css"],

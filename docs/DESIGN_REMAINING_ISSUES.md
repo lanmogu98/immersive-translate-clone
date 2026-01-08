@@ -137,11 +137,11 @@ Phase 5: UI 重构
 
 | 项目 | 内容 |
 |------|------|
-| **问题** | 当前翻译丢失所有内联格式（`<a>`, `<strong>`, `<em>` 等） |
-| **目标** | 翻译后保留原文的 DOM 结构和链接 |
-| **改动文件** | `src/utils/dom-utils.js`, `src/content.js` |
-| **技术方案** | **Option A（安全优先）**：<br>1. 提取元素中所有 **文本节点**（保留相对位置）<br>2. 将文本节点内容拼接发送给 LLM（用特殊占位符标记边界）<br>3. 翻译返回后，将翻译文本 **按原顺序写回对应文本节点**<br>4. 保持所有标签/属性不变<br><br>```javascript<br>// 伪代码<br>function extractTextNodes(element) {<br>  const textNodes = [];<br>  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);<br>  while (walker.nextNode()) {<br>    textNodes.push(walker.currentNode);<br>  }<br>  return textNodes;<br>}<br><br>function applyTranslation(textNodes, translatedTexts) {<br>  textNodes.forEach((node, i) => {<br>    node.textContent = translatedTexts[i] || node.textContent;<br>  });<br>}<br>```<br><br>**挑战**：<br>- 如何在流式响应中正确对应文本节点？<br>- 解决方案：先收集完整翻译再一次性应用，或使用 `[T0]...[T1]...` 占位符标记 |
-| **测试计划** | - `extractTextNodes()` 正确提取嵌套元素中的所有文本节点<br>- 翻译后 `<a>` 链接仍可点击<br>- `<strong>/<em>` 标签保留<br>- 混合内联元素场景（`<p>Click <a href="#">here</a> for <strong>more</strong></p>`） |
+| **问题** | 当前翻译将译文以纯文本插入，导致丢失所有内联格式（`<a>`, `<strong>`, `<em>` 等），且在链接密集/脚注密集页面（Wikipedia）上，基于“按文本节点数组对齐”的方案极易出现 A2（拼接生硬/错位）与 B（语序不自然） |
+| **目标** | 在不让模型输出 HTML 的前提下：<br>1) **保留链接/加粗/斜体/代码/脚注引用**等富文本结构与关键属性（尤其 `href`）；<br>2) 允许模型对语序做合理调整，避免 B；<br>3) 最大化解析成功率，避免 A2；<br>4) 失败时安全回退为纯文本（不空白、不破坏原 DOM）。 |
+| **改动文件** | `src/content.js`, `src/utils/prompt-templates.js`, `src/background.js`，新增 `src/utils/richtext-v2.js`（UMD 风格） |
+| **技术方案（RichText V2：Token 占位符协议，推荐）** | **核心原则**：<br>- **模型永远只输出纯文本**（不输出 HTML/Markdown，不需要 sanitizer）。<br>- 我们在输入中用“不可变 token”表达富文本节点；模型翻译文本时必须保留 token；我们用 token 将输出映射回“克隆出来的真实 DOM 节点”。<br>- 相比 V1（JSON segments 必须等长），V2 不要求按 text node 一一对齐，因此对 Wikipedia 更稳，并且 token 块可移动以改善语序。<br><br>**1) 适用范围（何时启用 V2）**：当段落包含以下任一情况启用：<br>- 至少一个 `<a>` 链接；或<br>- 至少一个 `<strong>/<em>/<code>` 内联样式；或<br>- 至少一个脚注/引用（Wikipedia: `<sup class=\"reference\">...</sup>`）。<br><br>**2) Token 语法（ASCII，避免编码问题）**：<br>- 段落标记：第一行固定 `[[ITC_RICH_V2]]`（输出不应包含该标记；若模型回显，渲染端会剥离）。<br>- Token：<br>  - 成对 token（包裹可翻译内容）：`[[ITC:a0]] ... [[/ITC]]`、`[[ITC:strong0]] ... [[/ITC]]`、`[[ITC:em0]]...`、`[[ITC:code0]]...`。<br>    - close token 使用**通用 `[[/ITC]]`**（不带 id），用于降低模型把 close id 写错导致整体回退的概率（解析端仍兼容旧式 `[[/ITC:a0]]`）。<br>  - 原子 token（不可翻译/原样保留节点）：`[[ITC:ref0]]`（脚注引用，保留可点击），后续可扩展 `[[ITC:br0]]` 等。<br><br>**3) 输入构造（tokenize）**：对原始元素进行浅层语义抽取：<br>- 对 `<a>/<strong>/<em>/<code>`：输出 open token + 递归子内容 + close token；同时保存 token→DOM clone 映射（`<a>` clone 必须保留 `href/title/target/...`）。<br>- 对脚注/引用（`sup.reference`/`.mw-ref`）：输出 atomic token（例如 `[[ITC:ref0]]`），并保存该 `<sup>` 的深拷贝（包含内部 `<a href=\"#cite_note-...\">[1]</a>`）。<br>- 对未知/复杂节点：默认扁平化为其 text（不保留样式），以控制 token 数量与失败概率。<br><br>**4) 输出解析与写回（detokenize + render）**：模型输出一段纯文本，其中 token 可能被移动（允许）。我们做：<br>- 解析输出为事件流：text / open(id) / close / atomic(id)。<br>- 校验：<br>  - 只允许出现输入阶段生成过的 token id；<br>  - 成对 token 必须正确嵌套（栈匹配）；<br>  - atomic token 每个 id 最多出现一次；<br>  - 如果缺 token / 多 token / 嵌套非法 → 判定失败。<br>- 渲染：创建一个 DocumentFragment，按事件流拼 DOM：<br>  - text → TextNode；<br>  - open → append 对应 shallow clone 并入栈；<br>  - close → 出栈；<br>  - atomic → append 对应 deep clone（脚注保持可点击）。<br><br>**5) 回退策略（必须安全）**：任一失败情形（token 缺失/非法嵌套/未知 token/输出夹带说明） → 直接回退为纯文本（译文节点 `.textContent = output`），确保可读且不破坏页面结构。<br><br>**6) Prompt / System 约束**：在 `PROTOCOL_PROMPT` 中追加 RichText V2 规则：<br>- 输出必须为纯文本 + token（禁止 HTML/Markdown/代码块）；<br>- token 必须保留不变，可移动 token 块以保证译文自然；<br>- `[[ITC:refN]]` 这类脚注 token 必须保留（不可删除/复制）。 |
+| **测试计划（必须覆盖 A2/B 的不可接受点）** | **单测（tokenize / parse / render）**：`tests/richtext-v2.test.js`<br>- tokenize：链接+加粗+脚注场景生成正确 token 文本与 tokenMap（href 保留）<br>- parse+render：模型可重排 token 块 → 仍能生成合法 DOM，且 `<a href>`/`<sup.reference>` 可点击保留<br>- 失败回退：缺 token/嵌套错误/未知 token → 回退纯文本<br><br>**集成（content translateBatch）**：扩展 `tests/content-translateBatch.test.js`<br>- 模拟 `translateStream` 返回包含 token 的译文，验证插入的译文节点包含 `<a>` 与 `<sup>`，且 text 顺序符合输出（允许移动）<br>- 模拟多段落 batch：rich + plain 混合时，rich 段落仍按 V2 解析，plain 段落为纯文本。 |
 
 ---
 
@@ -229,6 +229,7 @@ Phase 5: UI 重构
 | `src/utils/model-registry.js` | Provider/Model 注册表 + resolveConfig() |
 | `src/utils/lang-detect.js` | 简单语言检测 |
 | `src/utils/translation-cache.js` | 翻译缓存（LRU） |
+| `src/utils/richtext-v2.js` | RichText V2：tokenize / render（不让模型输出 HTML） |
 | `src/options/options.css` | Settings 页面样式 |
 | `icons/icon16.png` | 16x16 扩展图标 |
 | `icons/icon48.png` | 48x48 扩展图标 |
@@ -244,7 +245,8 @@ Phase 5: UI 重构
 | `tests/model-registry.test.js` | Issue 18 |
 | `tests/lang-detect.test.js` | Issue 12 |
 | `tests/translation-cache.test.js` | Issue 13 |
-| `tests/dom-utils-richtext.test.js` | Issue 16 |
+| `tests/richtext-v2.test.js` | Issue 16（RichText V2 token 协议） |
+| `tests/dom-utils-richtext.test.js` | Issue 16（文本节点抽取基础能力） |
 | `tests/dom-utils-filtering.test.js` | Issue 19 + Issue 14 选择器部分 |
 | `tests/exclusion.test.js` | Issue 14 域名匹配 |
 | `tests/options-defaults.test.js` | Issue 9 |
