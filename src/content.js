@@ -234,7 +234,7 @@ async function runTranslationProcess() {
 
     try {
         const config = await chrome.storage.sync.get({
-            apiUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+            apiUrl: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions',
             apiKey: '',
             modelName: 'deepseek-v3-2-251201',
             customPrompt: '',

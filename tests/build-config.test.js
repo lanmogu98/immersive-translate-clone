@@ -15,85 +15,104 @@ const GENERATED_JS_PATH = path.join(ROOT_DIR, 'src/utils/llm-config.generated.js
 
 describe('build-config pipeline', () => {
     describe('llm_config.yml (source of truth)', () => {
+        let rawConfig;
+
+        beforeAll(() => {
+            const content = fs.readFileSync(YAML_PATH, 'utf8');
+            rawConfig = yaml.load(content);
+        });
+
         test('should exist', () => {
             expect(fs.existsSync(YAML_PATH)).toBe(true);
         });
 
         test('should be valid YAML', () => {
-            const content = fs.readFileSync(YAML_PATH, 'utf8');
-            expect(() => yaml.load(content)).not.toThrow();
+            expect(rawConfig).toBeDefined();
+            expect(typeof rawConfig).toBe('object');
         });
 
-        test('should have providers object', () => {
-            const content = fs.readFileSync(YAML_PATH, 'utf8');
-            const config = yaml.load(content);
-            expect(config).toHaveProperty('providers');
-            expect(typeof config.providers).toBe('object');
+        test('should have at least one provider (excluding _shared_endpoints)', () => {
+            const providers = Object.keys(rawConfig).filter(k => !k.startsWith('_'));
+            expect(providers.length).toBeGreaterThan(0);
         });
 
         test('each provider should have required fields', () => {
-            const content = fs.readFileSync(YAML_PATH, 'utf8');
-            const config = yaml.load(content);
-
-            for (const [id, provider] of Object.entries(config.providers)) {
+            for (const [id, provider] of Object.entries(rawConfig)) {
+                if (id.startsWith('_')) continue; // skip internal keys
+                
                 expect(provider).toHaveProperty('name');
-                expect(provider).toHaveProperty('baseUrl');
-                expect(provider).toHaveProperty('authHeader');
+                expect(provider).toHaveProperty('api_base_url');
                 expect(provider).toHaveProperty('models');
-                expect(Array.isArray(provider.models)).toBe(true);
+                expect(typeof provider.models).toBe('object');
             }
         });
 
-        test('each model should have id and name', () => {
-            const content = fs.readFileSync(YAML_PATH, 'utf8');
-            const config = yaml.load(content);
-
-            for (const [providerId, provider] of Object.entries(config.providers)) {
-                for (const model of provider.models) {
+        test('each model should have id', () => {
+            for (const [providerId, provider] of Object.entries(rawConfig)) {
+                if (providerId.startsWith('_')) continue;
+                
+                for (const [modelKey, model] of Object.entries(provider.models || {})) {
                     expect(model).toHaveProperty('id');
-                    expect(model).toHaveProperty('name');
                 }
             }
+        });
+
+        test('custom provider should exist with empty models', () => {
+            expect(rawConfig).toHaveProperty('custom');
+            expect(rawConfig.custom.api_base_url).toBe('');
+            expect(rawConfig.custom.models).toEqual({});
         });
     });
 
     describe('generated files (after build:config)', () => {
-        // These tests verify the generated files exist and are valid
-        // They run after `npm run build:config` (via pretest hook)
+        let jsonConfig;
+
+        beforeAll(() => {
+            const jsonContent = fs.readFileSync(JSON_PATH, 'utf8');
+            jsonConfig = JSON.parse(jsonContent);
+        });
 
         test('llm_config.json should exist', () => {
             expect(fs.existsSync(JSON_PATH)).toBe(true);
         });
 
-        test('llm_config.json should be valid JSON matching YAML', () => {
-            const yamlContent = fs.readFileSync(YAML_PATH, 'utf8');
-            const yamlConfig = yaml.load(yamlContent);
+        test('llm_config.json should have providers object', () => {
+            expect(jsonConfig).toHaveProperty('providers');
+            expect(typeof jsonConfig.providers).toBe('object');
+        });
 
-            const jsonContent = fs.readFileSync(JSON_PATH, 'utf8');
-            const jsonConfig = JSON.parse(jsonContent);
+        test('providers should have transformed field names (camelCase)', () => {
+            const firstProvider = Object.values(jsonConfig.providers)[0];
+            expect(firstProvider).toHaveProperty('baseUrl');
+            expect(firstProvider).toHaveProperty('apiKeyEnvVar');
+            expect(firstProvider).toHaveProperty('maxTokens');
+            expect(firstProvider).toHaveProperty('contextWindow');
+        });
 
-            expect(jsonConfig).toEqual(yamlConfig);
+        test('models should be transformed to array format', () => {
+            for (const provider of Object.values(jsonConfig.providers)) {
+                expect(Array.isArray(provider.models)).toBe(true);
+                for (const model of provider.models) {
+                    expect(model).toHaveProperty('id');
+                    expect(model).toHaveProperty('key');
+                    expect(model).toHaveProperty('name');
+                }
+            }
         });
 
         test('llm-config.generated.js should exist', () => {
             expect(fs.existsSync(GENERATED_JS_PATH)).toBe(true);
         });
 
-        test('llm-config.generated.js should export config matching YAML', () => {
-            const yamlContent = fs.readFileSync(YAML_PATH, 'utf8');
-            const yamlConfig = yaml.load(yamlContent);
-
+        test('llm-config.generated.js should export config matching JSON', () => {
             // Clear require cache to get fresh module
             delete require.cache[require.resolve(GENERATED_JS_PATH)];
             const generatedConfig = require(GENERATED_JS_PATH);
 
-            expect(generatedConfig).toEqual(yamlConfig);
+            expect(generatedConfig).toEqual(jsonConfig);
         });
 
-        test('generated JS should be loadable by model-registry', () => {
-            // The real test is that model-registry.js can load the config
-            // This is already covered by model-registry.test.js
-            // Here we just verify the generated file is syntactically valid JS
+        test('generated JS should contain expected exports', () => {
             const content = fs.readFileSync(GENERATED_JS_PATH, 'utf8');
             expect(content).toContain('LLM_CONFIG');
             expect(content).toContain('module.exports');
@@ -101,26 +120,52 @@ describe('build-config pipeline', () => {
         });
     });
 
-    describe('YAML ↔ JSON consistency', () => {
-        test('all providers in YAML should be in JSON', () => {
+    describe('transformation correctness', () => {
+        let rawConfig;
+        let jsonConfig;
+
+        beforeAll(() => {
             const yamlContent = fs.readFileSync(YAML_PATH, 'utf8');
-            const yamlConfig = yaml.load(yamlContent);
-            const yamlProviders = Object.keys(yamlConfig.providers);
-
+            rawConfig = yaml.load(yamlContent);
             const jsonContent = fs.readFileSync(JSON_PATH, 'utf8');
-            const jsonConfig = JSON.parse(jsonContent);
-            const jsonProviders = Object.keys(jsonConfig.providers);
+            jsonConfig = JSON.parse(jsonContent);
+        });
 
+        test('all non-internal providers should be in transformed output', () => {
+            const yamlProviders = Object.keys(rawConfig).filter(k => !k.startsWith('_'));
+            const jsonProviders = Object.keys(jsonConfig.providers);
+            
             expect(jsonProviders.sort()).toEqual(yamlProviders.sort());
         });
 
-        test('custom provider should always exist with empty models', () => {
-            const yamlContent = fs.readFileSync(YAML_PATH, 'utf8');
-            const yamlConfig = yaml.load(yamlContent);
+        test('model count should match after transformation', () => {
+            for (const [providerId, provider] of Object.entries(rawConfig)) {
+                if (providerId.startsWith('_')) continue;
+                
+                const yamlModelCount = Object.keys(provider.models || {}).length;
+                const jsonModelCount = jsonConfig.providers[providerId]?.models?.length || 0;
+                
+                expect(jsonModelCount).toBe(yamlModelCount);
+            }
+        });
 
-            expect(yamlConfig.providers).toHaveProperty('custom');
-            expect(yamlConfig.providers.custom.baseUrl).toBe('');
-            expect(yamlConfig.providers.custom.models).toEqual([]);
+        test('YAML anchors should be resolved', () => {
+            // Check that volcengine endpoint anchor is resolved
+            const deepseekProvider = jsonConfig.providers['deepseek-volcengine'];
+            expect(deepseekProvider.baseUrl).toBe('https://ark.cn-beijing.volces.com/api/v3/chat/completions');
+        });
+
+        test('rate_limit should be transformed correctly', () => {
+            const geminiFree = jsonConfig.providers['gemini-free'];
+            expect(geminiFree.rateLimit).toBeDefined();
+            expect(geminiFree.rateLimit.minIntervalSeconds).toBe(12);
+            expect(geminiFree.rateLimit.maxRequestsPerMinute).toBe(5);
+        });
+
+        test('pricing should be preserved', () => {
+            const deepseek = jsonConfig.providers['deepseek-volcengine'];
+            const v3Model = deepseek.models.find(m => m.id === 'deepseek-v3-2-251201');
+            expect(v3Model.pricing).toEqual({ input: 4, output: 6 });
         });
     });
 });
