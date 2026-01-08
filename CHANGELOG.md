@@ -16,10 +16,20 @@ All notable changes to this project will be documented in this file.
 -   **URL Validation**: Options page now validates API URL format before saving.
 -   **Input Validation**: Options page validates required fields (API Key, Model Name) before saving.
 -   **Test Suite**: Added Jest + jsdom unit tests (with `chrome.*` mocks) to cover key extension flows and roadmap fixes.
+-   **Settings UI**: Redesigned Options page with sectioned layout (Provider/Model, Target Language, Style Prompt, Exclusions) and a dedicated `options.css` (no build tooling).
+-   **Model Presets**: Added provider/model presets via `src/utils/model-registry.js` (auto endpoint + model id resolution).
+-   **Prompt Templates**: Added `src/utils/prompt-templates.js` for protocol prompt + user translation prompt composition.
+-   **Target Language**: Added target language selector in settings; prompt composition includes target language.
+-   **Source Language Detection**: Skip scanning paragraphs that are already Chinese when target language is `zh-*` (simple CJK-ratio heuristic).
+-   **Exclusions**: Added exclusion rules (domains + CSS selectors) to skip translation on configured sites/elements.
+-   **Icons**: Added `icons` and `action.default_icon` in `manifest.json` for proper extension icon rendering.
 
 ### Changed
 -   **Prompt Architecture**: Removed duplicate default prompt from `background.js`. Now uses prompt from options config with minimal fallback.
 -   **Magic Numbers**: Added detailed comments explaining `MAX_CONCURRENT_WORKERS` and `BATCH_SIZE` configuration rationale.
+-   **Background Prompt Build**: Background now prefers `PromptTemplates.buildSystemPrompt({ userPrompt, targetLanguage })` when available (with legacy fallback).
+-   **Options Migration**: Options page migrates legacy `customPrompt` → `userTranslationPrompt` when the new field is empty.
+-   **Scan Heuristics**: Improved DOM scanning to include short main-content strings, and skip navigation areas / interactive UI chrome by default.
 
 ---
 

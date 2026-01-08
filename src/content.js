@@ -188,12 +188,28 @@ async function runTranslationProcess() {
             apiUrl: 'https://ark.cn-beijing.volces.com/api/v3',
             apiKey: '',
             modelName: 'deepseek-v3-2-251201',
-            customPrompt: ''
+            customPrompt: '',
+            targetLanguage: 'zh-CN',
+            userTranslationPrompt: '',
+            excludedDomains: [],
+            excludedSelectors: []
         });
 
         const llmClient = new LLMClient(config);
 
-        const newNodes = DOMUtils.getTranslatableElements();
+        // Domain exclusion (Issue 14)
+        if (isExcludedDomain(window.location.hostname, config.excludedDomains)) {
+            console.log('Translation skipped: excluded domain.');
+            return;
+        }
+
+        const newNodes = DOMUtils.getTranslatableElements({
+            excludedSelectors: config.excludedSelectors,
+            targetLanguage: config.targetLanguage,
+            // reserved for Issue 19 future options:
+            // translateNavigation: config.translateNavigation,
+            // translateShortTexts: config.translateShortTexts,
+        });
         console.log(`Found ${newNodes.length} new elements.`);
 
         translationQueue.push(...newNodes);
@@ -209,11 +225,22 @@ async function runTranslationProcess() {
     }
 }
 
+function isExcludedDomain(hostname, patterns) {
+    if (!patterns || !Array.isArray(patterns)) return false;
+    return patterns.some((pattern) => {
+        if (pattern.startsWith('*.')) {
+            return hostname.endsWith(pattern.slice(1));
+        }
+        return hostname === pattern || hostname.endsWith('.' + pattern);
+    });
+}
+
 // Node.js test support (no effect in extension runtime)
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         translateBatch,
         translationWorker,
         runTranslationProcess,
+        isExcludedDomain,
     };
 }

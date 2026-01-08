@@ -9,11 +9,15 @@ This document outlines the architecture, coding standards, and documentation mai
   ├── background.js      # Service Worker: Handles API Proxying & Tab events
   ├── content.js         # Content Script: Core logic (Scanning, Batching, Messaging)
   ├── content.css        # Styles for the injected translation nodes
-  ├── options/           # Settings UI (API Key, Prompts)
+  ├── options/           # Settings UI (Provider/Model, API Key, Language, Exclusions)
   ├── pdf-viewer/        # (Planned) Modified PDF.js viewer
   └── utils/
       ├── dom-utils.js   # Pure DOM manipulation helpers (Side-effect free where possible)
-      └── llm-client.js  # Bridge between Content Script and Background Service
+      ├── llm-client.js  # Bridge between Content Script and Background Service
+      ├── prompt-templates.js  # Protocol prompt + user prompt combiner (UMD-style)
+      ├── model-registry.js    # Provider/model registry + auto endpoint resolution (UMD-style)
+      ├── lang-detect.js       # Simple source-language heuristic (UMD-style)
+      └── translation-cache.js # LRU translation cache utility (UMD-style)
 
 /tests                  # Jest unit tests (jsdom + chrome mocks)
 jest.config.cjs         # Jest configuration
@@ -32,6 +36,11 @@ package.json            # Dev dependencies + test scripts
     -   Separator: `\n%%\n`.
     -   The LLM **MUST** return exact paragraph correspondence separated by `%%`.
     -   The Frontend **MUST** parse this stream and distribute text to the correct nodes.
+4.  **Shared Utils (No ESM)**:
+    -   `src/utils/*.js` are written in a UMD-like style:
+        -   Extension runtime: attach APIs to `globalThis`
+        -   Jest/Node: export via `module.exports`
+    -   Options page loads utils via `<script>` tags; background service worker loads via `importScripts(...)` (guarded in tests).
 
 ## Documentation Protocol (CRITICAL)
 
@@ -41,12 +50,13 @@ All developers must adhere to the following rules when updating code. **Code cha
 -   **When**: You change the installation process, configuration options, or major user-facing features.
 -   **How**: Ensure the "Configuration" section matches the actual fields in `src/options/options.html`.
 
-### 2. Updating `TODO.md`
--   **When**: You start a specific task or complete a feature.
+### 2. Updating `FUTURE_ROADMAP.md`
+-   **When**: You start/finish a roadmap item, change priorities, or add/remove near-term tasks.
 -   **How**:
-    -   Change `[ ]` to `[x]` upon completion.
-    -   Move items from "Planned" to "In Progress" when you start working on them.
-    -   Add new ideas to "Backlog".
+    -   Keep `FUTURE_ROADMAP.md` **short and high-signal** (default entrypoint for humans + agents).
+    -   Put deep implementation notes in `docs/DESIGN_REMAINING_ISSUES.md` (not in the roadmap).
+    -   Move historical/long-form content to `docs/roadmap/ROADMAP_ARCHIVE.md`.
+    -   See `docs/TASK_MANAGEMENT.md` for the full task-system contract.
 
 ### 3. Updating `CHANGELOG.md`
 -   **When**: Every time you make a commit that affects logic (Fixes, Features, Security).
@@ -63,7 +73,7 @@ All developers must adhere to the following rules when updating code. **Code cha
 1.  **Make Changes**: Edit the code in `/src`.
 2.  **Verify**: Load the unpacked extension and test.
 3.  **Document**: Update `CHANGELOG.md` immediately with what you changed.
-4.  **Reflect**: If you finished a roadmap item, check it off in `TODO.md`.
+4.  **Reflect**: If you finished a roadmap item, update its status in `FUTURE_ROADMAP.md` (and archive when appropriate).
 
 ## Testing
 

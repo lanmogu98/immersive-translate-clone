@@ -1,5 +1,3 @@
-const { streamTranslation, API_TIMEOUT_MS, FALLBACK_PROMPT } = require('../src/background.js');
-
 function createPort() {
   return {
     postMessage: jest.fn(),
@@ -8,13 +6,20 @@ function createPort() {
 }
 
 describe('background streamTranslation', () => {
+  beforeEach(() => {
+    jest.resetModules();
+    // Ensure deterministic behavior (other tests may have loaded PromptTemplates)
+    delete global.PromptTemplates;
+  });
+
   test('returns error when apiKey is missing', async () => {
+    const { streamTranslation } = require('../src/background.js');
     global.fetch = jest.fn();
     const port = createPort();
 
     await streamTranslation(
       'hello',
-      { apiUrl: 'https://api.example.com', apiKey: '', modelName: 'm', customPrompt: '' },
+      { apiUrl: 'https://api.example.com', apiKey: '', modelName: 'm', userTranslationPrompt: '', targetLanguage: 'zh-CN' },
       port
     );
 
@@ -22,7 +27,12 @@ describe('background streamTranslation', () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  test('uses customPrompt when provided', async () => {
+  test('uses PromptTemplates.buildSystemPrompt when available', async () => {
+    // Load PromptTemplates (it attaches to globalThis in Node)
+    const PromptTemplates = require('../src/utils/prompt-templates.js');
+    expect(PromptTemplates).toBeDefined();
+
+    const { streamTranslation } = require('../src/background.js');
     const port = createPort();
     let capturedBody;
 
@@ -44,16 +54,20 @@ describe('background streamTranslation', () => {
         apiUrl: 'https://api.example.com',
         apiKey: 'k',
         modelName: 'm',
-        customPrompt: 'CUSTOM_PROMPT',
+        userTranslationPrompt: 'CUSTOM_PROMPT',
+        targetLanguage: 'ja',
       },
       port
     );
 
-    expect(capturedBody.messages[0].content).toBe('CUSTOM_PROMPT');
+    expect(capturedBody.messages[0].content).toBe(
+      PromptTemplates.buildSystemPrompt({ userPrompt: 'CUSTOM_PROMPT', targetLanguage: 'ja' })
+    );
     expect(port.postMessage).toHaveBeenCalledWith({ done: true });
   });
 
-  test('falls back to FALLBACK_PROMPT when customPrompt is empty', async () => {
+  test('falls back to FALLBACK_PROMPT when PromptTemplates is not available and customPrompt is empty', async () => {
+    const { streamTranslation, FALLBACK_PROMPT } = require('../src/background.js');
     const port = createPort();
     let capturedBody;
 
@@ -76,6 +90,8 @@ describe('background streamTranslation', () => {
         apiKey: 'k',
         modelName: 'm',
         customPrompt: '',
+        userTranslationPrompt: '',
+        targetLanguage: '',
       },
       port
     );
@@ -86,6 +102,7 @@ describe('background streamTranslation', () => {
 
   test('aborts request and reports timeout after API_TIMEOUT_MS', async () => {
     jest.useFakeTimers();
+    const { streamTranslation, API_TIMEOUT_MS } = require('../src/background.js');
 
     const port = createPort();
 
@@ -106,7 +123,8 @@ describe('background streamTranslation', () => {
         apiUrl: 'https://api.example.com',
         apiKey: 'k',
         modelName: 'm',
-        customPrompt: '',
+        userTranslationPrompt: '',
+        targetLanguage: 'zh-CN',
       },
       port
     );

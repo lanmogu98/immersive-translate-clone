@@ -20,7 +20,7 @@ document.getElementById('btn-translate').addEventListener('click', async () => {
     try {
       await chrome.scripting.executeScript({
         target: { tabId: tab.id },
-        files: ['src/utils/llm-client.js', 'src/utils/dom-utils.js', 'src/content.js']
+        files: ['src/utils/llm-client.js', 'src/utils/lang-detect.js', 'src/utils/dom-utils.js', 'src/content.js']
       });
       await chrome.scripting.insertCSS({
         target: { tabId: tab.id },
