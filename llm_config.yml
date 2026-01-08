@@ -1,0 +1,70 @@
+# LLM Provider & Model Configuration
+# This is the single source of truth for supported providers and models.
+# 
+# To update the extension:
+# 1. Edit this file
+# 2. Run: npm run build:config
+# 3. Reload the extension in Chrome
+#
+# Schema:
+#   providers:
+#     <provider_id>:
+#       name: Display name
+#       baseUrl: API endpoint (empty for custom)
+#       authHeader: Authorization header type (default: Bearer)
+#       models:
+#         - id: model identifier
+#           name: display name
+
+providers:
+  openai:
+    name: OpenAI
+    baseUrl: https://api.openai.com/v1
+    authHeader: Bearer
+    models:
+      - id: gpt-4o
+        name: GPT-4o
+      - id: gpt-4o-mini
+        name: GPT-4o Mini
+      - id: gpt-4-turbo
+        name: GPT-4 Turbo
+      - id: gpt-3.5-turbo
+        name: GPT-3.5 Turbo
+
+  deepseek:
+    name: DeepSeek
+    baseUrl: https://api.deepseek.com
+    authHeader: Bearer
+    models:
+      - id: deepseek-chat
+        name: DeepSeek Chat
+      - id: deepseek-coder
+        name: DeepSeek Coder
+
+  volcengine:
+    name: Volcengine Ark
+    baseUrl: https://ark.cn-beijing.volces.com/api/v3
+    authHeader: Bearer
+    models:
+      - id: deepseek-v3-2-251201
+        name: DeepSeek V3 (Ark)
+      - id: doubao-pro-32k
+        name: Doubao Pro 32K
+      - id: doubao-lite-32k
+        name: Doubao Lite 32K
+
+  anthropic:
+    name: Anthropic
+    baseUrl: https://api.anthropic.com/v1
+    authHeader: Bearer
+    models:
+      - id: claude-3-5-sonnet-20241022
+        name: Claude 3.5 Sonnet
+      - id: claude-3-5-haiku-20241022
+        name: Claude 3.5 Haiku
+
+  custom:
+    name: Custom Endpoint
+    baseUrl: ""
+    authHeader: Bearer
+    models: []
