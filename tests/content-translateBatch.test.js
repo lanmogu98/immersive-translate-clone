@@ -75,4 +75,42 @@ describe('content translateBatch (stream parser)', () => {
   });
 });
 
+describe('content translateBatch (richtext v2 token protocol)', () => {
+  const { RichTextV2 } = require('../src/utils/richtext-v2.js');
+  global.RichTextV2 = RichTextV2;
+
+  test('renders translated output with preserved <a href> and footnote <sup.reference>', async () => {
+    document.body.innerHTML = `
+      <p id="a">
+        Sutton attended <a href="/wiki/Brenham">Brenham</a><sup class="reference"><a href="#cite_note-1">[1]</a></sup>.
+      </p>
+    `;
+    const a = document.getElementById('a');
+
+    const llmClient = {
+      translateStream: (text, onChunk, onError, onDone) => {
+        // Ensure the request uses RichText V2 marker + token syntax
+        expect(text).toContain('[[ITC_RICH_V2]]');
+        expect(text).toContain('[[ITC:a0]]');
+        expect(text).toContain('[[/ITC:a0]]');
+        expect(text).toContain('[[ITC:ref0]]');
+
+        onChunk('他就读于[[ITC:a0]]布伦汉姆[[/ITC:a0]]高中[[ITC:ref0]]。');
+        onDone();
+      },
+    };
+
+    await translateBatch([{ element: a, text: a.textContent, richText: 'v2' }], llmClient);
+
+    const node = a.querySelector(':scope > .immersive-translate-target');
+    expect(node).not.toBeNull();
+    const link = node.querySelector('a');
+    expect(link).not.toBeNull();
+    expect(link.getAttribute('href')).toBe('/wiki/Brenham');
+    const sup = node.querySelector('sup.reference');
+    expect(sup).not.toBeNull();
+    expect(sup.querySelector('a').getAttribute('href')).toBe('#cite_note-1');
+  });
+});
+
 

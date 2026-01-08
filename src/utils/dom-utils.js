@@ -75,10 +75,20 @@ class DOMUtils {
             // Issue 19: Main content has lower min length
             const minLen = this.isInMainContent(element) ? Math.min(MAIN_MIN_LEN, DEFAULT_MIN_LEN) : DEFAULT_MIN_LEN;
             if (rawText.length >= minLen) {
-                elements.push({ element, text: rawText });
+                // Issue 16 (RichText V2): mark candidates that contain inline markup / links / footnotes
+                const richText = this.shouldUseRichTextV2(element) ? 'v2' : undefined;
+                elements.push({ element, text: rawText, richText });
             }
         }
         return elements;
+    }
+
+    static shouldUseRichTextV2(element) {
+        if (!element || !element.querySelector) return false;
+        // Links, inline styles, and Wikipedia-style footnote references.
+        return (
+            element.querySelector('a, strong, em, code, sup.reference, .mw-ref') !== null
+        );
     }
 
     static isInMainContent(element) {

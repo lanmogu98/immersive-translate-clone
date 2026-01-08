@@ -55,8 +55,23 @@ async function translationWorker(llmClient) {
 }
 
 async function translateBatch(batch, llmClient) {
-    // 1. Prepare UI nodes
-    const nodes = batch.map(ctx => {
+    // RichText V2 marker (token protocol)
+    const RICH_V2_MARKER = '[[ITC_RICH_V2]]';
+
+    // 1. Prepare tokenized inputs (before injecting loading nodes)
+    const richTokenized = new Array(batch.length).fill(null);
+    const modes = batch.map((ctx, idx) => {
+        if (ctx && ctx.richText === 'v2') {
+            if (typeof globalThis !== 'undefined' && globalThis.RichTextV2 && typeof globalThis.RichTextV2.tokenizeElement === 'function') {
+                richTokenized[idx] = globalThis.RichTextV2.tokenizeElement(ctx.element);
+                return 'v2';
+            }
+        }
+        return 'plain';
+    });
+
+    // 2. Prepare UI nodes
+    const nodes = batch.map((ctx) => {
         if (DOMUtils.isSeparatelyTranslated(ctx.element)) return null;
         return DOMUtils.injectTranslationNode(ctx.element);
     });
@@ -65,7 +80,15 @@ async function translateBatch(batch, llmClient) {
     // If batch size is 1, we don't need separator, but strictly following rule 5 in prompt is safer.
     // However, prompt says "Multi-paragraph input -> Use %%".
     const separator = '\n%%\n';
-    const combinedText = batch.map(ctx => ctx.text.replace(/\n/g, ' ')).join(separator);
+    const combinedText = batch
+        .map((ctx, idx) => {
+            if (modes[idx] === 'v2' && richTokenized[idx] && typeof richTokenized[idx].text === 'string') {
+                // tokenized.text already contains marker + newline + tokenized content
+                return richTokenized[idx].text;
+            }
+            return (ctx.text || '').replace(/\n/g, ' ');
+        })
+        .join(separator);
 
     // 3. Stream Handler State
     let buffer = '';
@@ -89,10 +112,20 @@ async function translateBatch(batch, llmClient) {
                         // Content before the separator belongs to the CURRENT node
                         const content = buffer.substring(0, tagIndex);
 
-                        // Append to current node if exists
-                        if (nodes[currentNodeIndex]) {
-                            // Trim trailing newlines usually associated with the separator
-                            DOMUtils.appendTranslation(nodes[currentNodeIndex], content.trimEnd());
+                        const node = nodes[currentNodeIndex];
+                        if (node) {
+                            const mode = modes[currentNodeIndex];
+                            if (mode === 'v2' && richTokenized[currentNodeIndex] && globalThis.RichTextV2) {
+                                const out = content.trim();
+                                const ok = globalThis.RichTextV2.renderToNode(node, richTokenized[currentNodeIndex], out);
+                                if (!ok) {
+                                    node.innerHTML = '';
+                                    node.textContent = out;
+                                }
+                            } else {
+                                // Trim trailing newlines usually associated with the separator
+                                DOMUtils.appendTranslation(node, content.trimEnd());
+                            }
                         }
 
                         // Advance to next node
@@ -111,9 +144,14 @@ async function translateBatch(batch, llmClient) {
 
                     } else {
                         // No separator found yet.
-                        // BUT we must filter out partial "%%" before flushing to UI
-                        // to avoid users seeing "%" momentarily.
+                        // For rich-text V2 paragraphs we must buffer until paragraph boundary,
+                        // otherwise we'd render incomplete token sequences.
+                        if (modes[currentNodeIndex] === 'v2') {
+                            break; // wait for more data
+                        }
 
+                        // Plain path: filter out partial "%%" before flushing to UI
+                        // to avoid users seeing "%" momentarily.
                         const partialMatch = buffer.lastIndexOf('%');
                         if (partialMatch !== -1 && buffer.length - partialMatch < 2) {
                             // Possible start of %%, keep it in buffer
@@ -146,7 +184,18 @@ async function translateBatch(batch, llmClient) {
             () => {
                 // Final flush of whatever is left in buffer
                 if (buffer.length > 0 && nodes[currentNodeIndex]) {
-                    DOMUtils.appendTranslation(nodes[currentNodeIndex], buffer.trim());
+                    const node = nodes[currentNodeIndex];
+                    const mode = modes[currentNodeIndex];
+                    if (mode === 'v2' && richTokenized[currentNodeIndex] && globalThis.RichTextV2) {
+                        const out = buffer.trim();
+                        const ok = globalThis.RichTextV2.renderToNode(node, richTokenized[currentNodeIndex], out);
+                        if (!ok) {
+                            node.innerHTML = '';
+                            node.textContent = out;
+                        }
+                    } else {
+                        DOMUtils.appendTranslation(node, buffer.trim());
+                    }
                 }
 
                 nodes.forEach(node => {
