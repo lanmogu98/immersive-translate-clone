@@ -21,7 +21,7 @@ This is the **high-signal entrypoint** for near-term work.
 | --- | --- | --- | --- |
 | 16 | P1 | Preserve rich text formatting in translated output | ✅ Done |
 | 19 | P1 | Replace brittle min-length heuristic to avoid missing short texts | ✅ Done |
-| 21 | P1 | Model selection driven by `llm_config.yml` (single source of truth) | 🔲 Pending |
+| 21 | P1 | Model selection driven by `llm_config.yml` (single source of truth) | ✅ Done |
 | 25 | P1 | Prompt injection 防护：将网页内容视为不可信输入（LLM security hardening） | 🔲 Pending |
 | 22 | P2 | Prompt migration should use exact old-default match | ✅ Done |
 | 23 | P2 | Exclusion tests should cover real implementation | ✅ Done |

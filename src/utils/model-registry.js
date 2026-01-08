@@ -4,59 +4,46 @@
  * This module provides a registry of supported LLM providers and their models,
  * enabling automatic endpoint configuration based on provider selection.
  * 
+ * Configuration is loaded from llm_config.yml (via generated JS/JSON).
+ * See: llm_config.yml (source of truth)
+ * 
  * Usage:
- * - Extension runtime: globalThis.ModelRegistry
+ * - Extension runtime: globalThis.ModelRegistry (requires llm-config.generated.js loaded first)
  * - Jest tests: require('./model-registry.js')
  */
 
-// Model and Provider Registry
-const MODEL_REGISTRY = {
-    openai: {
-        name: 'OpenAI',
-        baseUrl: 'https://api.openai.com/v1',
-        models: [
-            { id: 'gpt-4o', name: 'GPT-4o' },
-            { id: 'gpt-4o-mini', name: 'GPT-4o Mini' },
-            { id: 'gpt-4-turbo', name: 'GPT-4 Turbo' },
-            { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo' }
-        ],
-        authHeader: 'Bearer'
-    },
-    deepseek: {
-        name: 'DeepSeek',
-        baseUrl: 'https://api.deepseek.com',
-        models: [
-            { id: 'deepseek-chat', name: 'DeepSeek Chat' },
-            { id: 'deepseek-coder', name: 'DeepSeek Coder' }
-        ],
-        authHeader: 'Bearer'
-    },
-    volcengine: {
-        name: 'Volcengine Ark',
-        baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
-        models: [
-            { id: 'deepseek-v3-2-251201', name: 'DeepSeek V3 (Ark)' },
-            { id: 'doubao-pro-32k', name: 'Doubao Pro 32K' },
-            { id: 'doubao-lite-32k', name: 'Doubao Lite 32K' }
-        ],
-        authHeader: 'Bearer'
-    },
-    anthropic: {
-        name: 'Anthropic',
-        baseUrl: 'https://api.anthropic.com/v1',
-        models: [
-            { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet' },
-            { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku' }
-        ],
-        authHeader: 'Bearer'
-    },
-    custom: {
-        name: 'Custom Endpoint',
-        baseUrl: '',
-        models: [],
-        authHeader: 'Bearer'
+// Load config from globalThis.LLM_CONFIG (set by llm-config.generated.js)
+// or require it directly in Node.js/Jest environment
+function loadConfig() {
+    // Browser / Extension runtime: LLM_CONFIG is set by llm-config.generated.js
+    if (typeof globalThis !== 'undefined' && globalThis.LLM_CONFIG) {
+        return globalThis.LLM_CONFIG;
     }
-};
+    
+    // Node.js / Jest: require the generated config
+    if (typeof require !== 'undefined') {
+        try {
+            return require('./llm-config.generated.js');
+        } catch (e) {
+            // Fallback: try loading JSON directly
+            try {
+                return require('../../llm_config.json');
+            } catch (e2) {
+                console.warn('ModelRegistry: Failed to load LLM config, using empty fallback');
+                return { providers: {} };
+            }
+        }
+    }
+    
+    console.warn('ModelRegistry: No config available, using empty fallback');
+    return { providers: {} };
+}
+
+// Load configuration
+const CONFIG = loadConfig();
+
+// MODEL_REGISTRY is now derived from the loaded config
+const MODEL_REGISTRY = CONFIG.providers || {};
 
 /**
  * Get list of all provider IDs
@@ -65,7 +52,9 @@ const MODEL_REGISTRY = {
 function getProviders() {
     const providers = Object.keys(MODEL_REGISTRY);
     // Ensure 'custom' is always last
-    return providers.filter(p => p !== 'custom').concat(['custom']);
+    return providers.filter(p => p !== 'custom').concat(
+        providers.includes('custom') ? ['custom'] : []
+    );
 }
 
 /**
@@ -148,4 +137,3 @@ if (typeof module !== 'undefined' && module.exports) {
 if (typeof globalThis !== 'undefined') {
     globalThis.ModelRegistry = ModelRegistry;
 }
-

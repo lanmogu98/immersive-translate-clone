@@ -5,23 +5,27 @@ This document outlines the architecture, coding standards, and documentation mai
 ## Project Structure
 
 ```text
-/src
-  ├── background.js      # Service Worker: Handles API Proxying & Tab events
-  ├── content.js         # Content Script: Core logic (Scanning, Batching, Messaging)
-  ├── content.css        # Styles for the injected translation nodes
-  ├── options/           # Settings UI (Provider/Model, API Key, Language, Exclusions)
-  ├── pdf-viewer/        # (Planned) Modified PDF.js viewer
-  └── utils/
-      ├── dom-utils.js   # Pure DOM manipulation helpers (Side-effect free where possible)
-      ├── llm-client.js  # Bridge between Content Script and Background Service
-      ├── prompt-templates.js  # Protocol prompt + user prompt combiner (UMD-style)
-      ├── model-registry.js    # Provider/model registry + auto endpoint resolution (UMD-style)
-      ├── lang-detect.js       # Simple source-language heuristic (UMD-style)
-      └── translation-cache.js # LRU translation cache utility (UMD-style)
-
-/tests                  # Jest unit tests (jsdom + chrome mocks)
-jest.config.cjs         # Jest configuration
-package.json            # Dev dependencies + test scripts
+/
+├── llm_config.yml       # ★ Single source of truth for LLM providers/models
+├── scripts/
+│   └── build-config.js  # Converts llm_config.yml → JSON + generated JS
+├── src/
+│   ├── background.js      # Service Worker: Handles API Proxying & Tab events
+│   ├── content.js         # Content Script: Core logic (Scanning, Batching, Messaging)
+│   ├── content.css        # Styles for the injected translation nodes
+│   ├── options/           # Settings UI (Provider/Model, API Key, Language, Exclusions)
+│   ├── pdf-viewer/        # (Planned) Modified PDF.js viewer
+│   └── utils/
+│       ├── dom-utils.js           # Pure DOM manipulation helpers
+│       ├── llm-client.js          # Bridge between Content Script and Background Service
+│       ├── prompt-templates.js    # Protocol prompt + user prompt combiner (UMD-style)
+│       ├── model-registry.js      # Provider/model registry (reads from llm-config.generated.js)
+│       ├── llm-config.generated.js  # ★ Auto-generated from llm_config.yml (do not edit)
+│       ├── lang-detect.js         # Simple source-language heuristic (UMD-style)
+│       └── translation-cache.js   # LRU translation cache utility (UMD-style)
+├── tests/                 # Jest unit tests (jsdom + chrome mocks)
+├── jest.config.cjs        # Jest configuration
+└── package.json           # Dev dependencies + test/build scripts
 ```
 
 ## Architecture Principles
@@ -74,6 +78,24 @@ All developers must adhere to the following rules when updating code. **Code cha
 2.  **Verify**: Load the unpacked extension and test.
 3.  **Document**: Update `CHANGELOG.md` immediately with what you changed.
 4.  **Reflect**: If you finished a roadmap item, update its status in `FUTURE_ROADMAP.md` (and archive when appropriate).
+
+## Updating LLM Providers/Models
+
+The provider and model list is defined in `llm_config.yml` (single source of truth).
+
+```bash
+# 1. Edit llm_config.yml (add/remove providers or models)
+# 2. Regenerate the runtime config:
+npm run build:config
+
+# 3. Reload the extension in Chrome
+```
+
+The build script generates:
+- `llm_config.json` — for programmatic access and tests
+- `src/utils/llm-config.generated.js` — loaded by the extension at runtime
+
+**Note:** These generated files are in `.gitignore`. Always commit `llm_config.yml` as the source of truth.
 
 ## Testing
 

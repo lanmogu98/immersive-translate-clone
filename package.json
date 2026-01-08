@@ -7,14 +7,15 @@
     "node": ">=18"
   },
   "scripts": {
+    "build:config": "node scripts/build-config.js",
+    "pretest": "npm run build:config",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:ci": "jest --runInBand"
   },
   "devDependencies": {
     "jest": "29.7.0",
-    "jest-environment-jsdom": "29.7.0"
+    "jest-environment-jsdom": "29.7.0",
+    "js-yaml": "^4.1.0"
   }
 }
-
-

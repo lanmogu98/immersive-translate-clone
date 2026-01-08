@@ -6,3 +6,7 @@ node_modules/
 AGENTS.md
 immersive_translate_clone.code-workspace
 icons/imagen-*.png
+
+# Generated config files (from llm_config.yml)
+llm_config.json
+src/utils/llm-config.generated.js
