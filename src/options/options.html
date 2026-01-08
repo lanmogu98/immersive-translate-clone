@@ -36,8 +36,11 @@
 
                 <div class="field span-2">
                     <label for="apiKey">API Key</label>
-                    <input type="password" id="apiKey" placeholder="sk-..." autocomplete="off">
-                    <div class="hint">Stored in <code>chrome.storage.sync</code>. Keep it private.</div>
+                    <div class="input-with-button">
+                        <input type="password" id="apiKey" placeholder="sk-..." autocomplete="off">
+                        <button type="button" id="toggleApiKey" class="icon-btn" title="Show API Key">👁️</button>
+                    </div>
+                    <div class="hint">Stored per provider. Each provider remembers its own key.</div>
                 </div>
             </div>
         </section>

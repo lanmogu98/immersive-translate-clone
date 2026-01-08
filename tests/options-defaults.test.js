@@ -70,11 +70,12 @@ describe('Options Defaults Consistency (Issue 9)', () => {
     });
 
     test('DEFAULT_CONFIG should contain apiUrl', () => {
-      expect(optionsJsContent).toMatch(/DEFAULT_CONFIG\s*=\s*\{[^}]*apiUrl\s*:/);
+      // Use multiline matching since DEFAULT_CONFIG spans multiple lines
+      expect(optionsJsContent).toMatch(/DEFAULT_CONFIG\s*=\s*\{[\s\S]*apiUrl\s*:/);
     });
 
     test('DEFAULT_CONFIG should contain modelName', () => {
-      expect(optionsJsContent).toMatch(/DEFAULT_CONFIG\s*=\s*\{[^}]*modelName\s*:/);
+      expect(optionsJsContent).toMatch(/DEFAULT_CONFIG\s*=\s*\{[\s\S]*modelName\s*:/);
     });
 
     test('DEFAULT_CONFIG.apiKey should be empty string (security)', () => {

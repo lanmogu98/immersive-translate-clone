@@ -36,6 +36,12 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 -   **Rich Text (Issue 16)**: Hardened RichText V2 parsing to strip echoed `[[ITC_RICH_V2]]` / code fences and tolerate close-token corruption via generic `[[/ITC]]` closes.
+-   **Options Page Bugs**: Fixed 5 issues discovered during testing:
+    1. Target language switch now works correctly
+    2. Default provider/model display on first load
+    3. API key storage per provider (each provider remembers its own key)
+    4. API key visibility toggle button added
+    5. Save button event listener moved inside DOMContentLoaded
 
 ---
 
