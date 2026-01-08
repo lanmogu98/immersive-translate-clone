@@ -3,11 +3,19 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 // Load shared utils (no ESM; safe-guarded for Jest/Node)
+// In Manifest V3 service workers, importScripts paths are relative to extension root
 try {
     if (typeof importScripts === 'function') {
-        importScripts('src/utils/prompt-templates.js');
+        // Try both possible paths (relative to root vs relative to service worker)
+        try {
+            importScripts('src/utils/prompt-templates.js');
+        } catch (e1) {
+            importScripts('./utils/prompt-templates.js');
+        }
+        console.log('PromptTemplates loaded:', typeof globalThis.PromptTemplates !== 'undefined');
     }
 } catch (e) {
+    console.warn('Failed to load prompt-templates.js:', e);
     // ignore (tests / non-extension runtime)
 }
 
