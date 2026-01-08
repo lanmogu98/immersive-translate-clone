@@ -55,7 +55,20 @@ const PROTOCOL_PROMPT = `You are a professional translator. Translate the input 
 const DEFAULT_USER_PROMPT = '翻译风格：保持原文语气，流畅自然。';
 
 // Old default prompt for migration detection
-const OLD_DEFAULT_PROMPT_SIGNATURE = 'You are a professional Simplified Chinese native translator';
+// NOTE (Issue 22): this must be an exact match string (not a substring signature),
+// otherwise we risk incorrectly treating user-modified prompts as "default".
+const OLD_DEFAULT_PROMPT = `You are a professional Simplified Chinese native translator who needs to fluently translate text into Simplified Chinese.
+
+## Translation Rules
+1. Output only the translated content, without explanations or additional content (such as "Here's the translation:" or "Translation as follows:")
+2. The returned translation must maintain exactly the same number of paragraphs and format as the original text
+3. If the text contains HTML tags, consider where the tags should be placed in the translation while maintaining fluency
+4. For content that should not be translated (such as proper nouns, code, etc.), keep the original text.
+5. If input contains %%, use %% in your output, if input has no %%, don't use %% in your output
+
+## OUTPUT FORMAT:
+- **Single paragraph input** → Output translation directly (no separators, no extra text)
+- **Multi-paragraph input** → Use %% as paragraph separator between translations`;
 
 /**
  * Build the complete system prompt by combining protocol and user prompts
@@ -98,10 +111,10 @@ function migrateCustomPrompt(oldConfig) {
     
     // Check if customPrompt exists and is not the old default
     if (result.customPrompt && result.customPrompt.trim().length > 0) {
-        // Don't migrate if it's the old default prompt (user never customized)
-        if (!result.customPrompt.includes(OLD_DEFAULT_PROMPT_SIGNATURE)) {
-            result.userTranslationPrompt = result.customPrompt;
-        }
+        // Don't migrate only when it's EXACTLY the old default prompt (user never customized)
+        const custom = result.customPrompt.trim();
+        const isExactOldDefault = custom === OLD_DEFAULT_PROMPT.trim();
+        if (!isExactOldDefault) result.userTranslationPrompt = result.customPrompt;
     }
     
     // Mark customPrompt for deletion
@@ -114,6 +127,7 @@ function migrateCustomPrompt(oldConfig) {
 const PromptTemplates = {
     PROTOCOL_PROMPT,
     DEFAULT_USER_PROMPT,
+    OLD_DEFAULT_PROMPT,
     TARGET_LANGUAGES,
     getLanguageName,
     buildSystemPrompt,

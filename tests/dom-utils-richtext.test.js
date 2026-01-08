@@ -74,6 +74,17 @@ describe('DOMUtils - Rich Text Preservation', () => {
       expect(nonEmpty[0].textContent).toBe('Hello');
     });
 
+      test('should drop whitespace-only text nodes (Issue 24 clarified semantics)', () => {
+        const p = document.createElement('p');
+        p.innerHTML = '  <span>Hi</span>  ';
+        document.body.appendChild(p);
+
+        expect(typeof DOMUtils.extractTextNodes).toBe('function');
+
+        const textNodes = DOMUtils.extractTextNodes(p);
+        expect(textNodes.map(n => n.textContent)).toEqual(['Hi']);
+      });
+
     test('should preserve text node order (depth-first traversal)', () => {
       const div = document.createElement('div');
       div.innerHTML = 'A<span>B<strong>C</strong>D</span>E';

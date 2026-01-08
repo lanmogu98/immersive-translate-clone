@@ -17,6 +17,12 @@ class DOMUtils {
         const elements = [];
         const options = arguments.length > 0 ? arguments[0] : undefined;
         const excludedSelectors = (options && Array.isArray(options.excludedSelectors)) ? options.excludedSelectors : [];
+        const targetLanguage = options && typeof options.targetLanguage === 'string' ? options.targetLanguage : undefined;
+        const translateNavigation = options && options.translateNavigation === true;
+        const translateShortTexts = options && options.translateShortTexts === true;
+
+        const DEFAULT_MIN_LEN = translateShortTexts ? 1 : 8;
+        const MAIN_MIN_LEN = 3;
         // Enhanced selector to include lists, blockquotes, and captions
         const candidates = document.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, blockquote, td, div, figcaption, dt, dd');
 
@@ -33,6 +39,12 @@ class DOMUtils {
                 continue;
             }
 
+            // Issue 19: Skip interactive UI chrome (buttons/inputs/menus)
+            if (this.isInteractiveElement(element)) continue;
+
+            // Issue 19: Skip navigation-ish areas by default (even if long)
+            if (!translateNavigation && this.isInNavigationArea(element)) continue;
+
             // Skip navigation bars if possible (simple heuristic: common nav class/id substrings or role)
             // This is hard to get perfect universally without complex logic.
             // For now, we rely on text length. Small text in DIVs is often UI.
@@ -43,13 +55,48 @@ class DOMUtils {
                 continue;
             }
 
-            const text = element.innerText.trim();
-            // Lowered threshold to 10 to catch short captions
-            if (text.length > 8 && !/^\d+$/.test(text)) {
-                elements.push({ element, text });
+            const rawText = (typeof element.innerText === 'string' ? element.innerText : element.textContent || '').trim();
+            if (!rawText) continue;
+
+            // Skip pure numbers
+            if (/^\d+$/.test(rawText)) continue;
+
+            // Issue 12: Language gating (only effective when LangDetect is loaded)
+            if (
+                targetLanguage &&
+                typeof globalThis !== 'undefined' &&
+                globalThis.LangDetect &&
+                typeof globalThis.LangDetect.shouldSkipTranslation === 'function' &&
+                globalThis.LangDetect.shouldSkipTranslation(rawText, targetLanguage)
+            ) {
+                continue;
+            }
+
+            // Issue 19: Main content has lower min length
+            const minLen = this.isInMainContent(element) ? Math.min(MAIN_MIN_LEN, DEFAULT_MIN_LEN) : DEFAULT_MIN_LEN;
+            if (rawText.length >= minLen) {
+                elements.push({ element, text: rawText });
             }
         }
         return elements;
+    }
+
+    static isInMainContent(element) {
+        return !!(element && element.closest && element.closest('main, article, [role="main"]'));
+    }
+
+    static isInNavigationArea(element) {
+        return !!(element && element.closest && element.closest('nav, header, footer, aside, [role="navigation"]'));
+    }
+
+    static isInteractiveElement(element) {
+        if (!element || !element.closest) return false;
+        // If the element itself or any ancestor is an interactive control, skip it
+        if (element.closest('button, input, select, textarea')) return true;
+        // Role-based buttons
+        if (element.getAttribute && element.getAttribute('role') === 'button') return true;
+        if (element.closest('[role="button"]')) return true;
+        return false;
     }
 
     static isExcludedBySelector(element, selectors) {
@@ -154,9 +201,12 @@ class DOMUtils {
         
         let node;
         while ((node = walker.nextNode())) {
-            // Include all text nodes, even whitespace-only
-            // Filter empty ones but keep whitespace for formatting
-            textNodes.push(node);
+            // Clarified semantics (Issue 24):
+            // - Keep text nodes that contain any non-whitespace characters
+            // - Drop whitespace-only nodes to avoid alignment drift when mapping translations
+            if (node.textContent && node.textContent.trim().length > 0) {
+                textNodes.push(node);
+            }
         }
         
         return textNodes;

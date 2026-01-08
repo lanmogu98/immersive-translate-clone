@@ -20,6 +20,16 @@ describe('Manifest Icon Configuration (Issue 15)', () => {
     manifest = JSON.parse(manifestContent);
   });
 
+  function readPngDimensions(absolutePath) {
+    const buf = fs.readFileSync(absolutePath);
+    // PNG width/height are stored in the IHDR chunk starting at byte 16
+    // (8-byte signature + 4-byte length + 4-byte type = 16)
+    return {
+      width: buf.readUInt32BE(16),
+      height: buf.readUInt32BE(20),
+    };
+  }
+
   describe('icons field', () => {
     test('manifest should have icons field', () => {
       expect(manifest.icons).toBeDefined();
@@ -104,6 +114,20 @@ describe('Manifest Icon Configuration (Issue 15)', () => {
     test('icon128.png should exist', () => {
       const iconPath = path.join(projectRoot, 'icons', 'icon128.png');
       expect(fs.existsSync(iconPath)).toBe(true);
+    });
+
+    test('icon files should have correct pixel dimensions', () => {
+      const specs = [
+        { name: 'icon16.png', size: 16 },
+        { name: 'icon48.png', size: 48 },
+        { name: 'icon128.png', size: 128 },
+      ];
+      for (const spec of specs) {
+        const p = path.join(projectRoot, 'icons', spec.name);
+        const { width, height } = readPngDimensions(p);
+        expect(width).toBe(spec.size);
+        expect(height).toBe(spec.size);
+      }
     });
   });
 });

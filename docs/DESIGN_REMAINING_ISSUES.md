@@ -20,6 +20,41 @@
 ## 📋 实现顺序与依赖关系
 
 ```
+
+---
+
+## ✅ 近期已完成（用于收敛 Now 列表）
+
+- **Issue 22**: Prompt 迁移改为“旧默认 prompt 严格相等”判定（不再用 substring signature）
+- **Issue 23**: 排除逻辑测试改为覆盖真实实现（不再测 test helper）
+- **Issue 24**: 明确 `extractTextNodes()` 语义：**过滤 whitespace-only 文本节点**，避免富文本映射对齐漂移
+
+---
+
+## 🎯 下一迭代建议目标：扫描管线升级（Issue 19 + Issue 12）
+
+把“页面扫描→入队”的行为做成可控、可测、可配置的扫描管线，先把误漏翻/误翻问题解决掉，再进入富文本翻译（Issue 16）。
+
+### Scope
+
+- **Issue 19（P1）**：替换硬编码长度阈值为分层 heuristic
+- **Issue 12（P3）**：在扫描阶段跳过“已经是中文”的段落（目标语言为 zh-* 时）
+
+### 插入点（代码为真）
+
+- `src/utils/dom-utils.js`
+  - 新增 `DOMUtils.shouldTranslate(element, options)`（纯函数风格，便于单测）
+  - `DOMUtils.getTranslatableElements(options)` 内部改为依赖 `shouldTranslate`
+- `src/content.js`
+  - `runTranslationProcess()` 在 `DOMUtils.getTranslatableElements(...)` 之后增加语言检测过滤（或在 `DOMUtils` 内统一处理）
+- `src/utils/lang-detect.js`
+  - 先保持最小能力：只判断 `zh` vs `other`，并仅在 target 为 `zh/zh-CN/zh-TW` 时启用跳过
+
+### 测试策略
+
+- **单测（DOM 层）**：`DOMUtils.shouldTranslate` 与 `getTranslatableElements` 的组合测试（jsdom 需 mock `offsetParent`/`innerText`）
+- **单测（语言检测）**：覆盖 `LangDetect.shouldSkipTranslation(text, targetLang)` 在 zh-* 目标下的行为
+- **集成（content 扫描）**：用 mock `chrome.storage.sync.get` 提供 `targetLanguage`，验证扫描结果会跳过中文段落（不进入 `translationQueue`）
 Phase 1: 基础设施 & 配置层
 ├── Issue 9:  统一默认值（HTML/JS 对齐）
 ├── Issue 15: 配置扩展图标

@@ -20,12 +20,13 @@ This is the **high-signal entrypoint** for near-term work.
 | ID | Priority | Item | Status |
 | --- | --- | --- | --- |
 | 16 | P1 | Preserve rich text formatting in translated output | 🔲 Pending |
-| 19 | P1 | Replace brittle min-length heuristic to avoid missing short texts | 🔲 Pending |
+| 19 | P1 | Replace brittle min-length heuristic to avoid missing short texts | ✅ Done |
 | 21 | P1 | Model selection driven by `llm_config.yml` (single source of truth) | 🔲 Pending |
-| 22 | P2 | Prompt migration should use exact old-default match | 🔲 Pending |
-| 23 | P2 | Exclusion tests should cover real implementation | 🔲 Pending |
-| 24 | P2 | Clarify `extractTextNodes` whitespace semantics | 🔲 Pending |
-| 12 | P3 | Source language detection | 🔲 Pending |
+| 25 | P1 | Prompt injection 防护：将网页内容视为不可信输入（LLM security hardening） | 🔲 Pending |
+| 22 | P2 | Prompt migration should use exact old-default match | ✅ Done |
+| 23 | P2 | Exclusion tests should cover real implementation | ✅ Done |
+| 24 | P2 | Clarify `extractTextNodes` whitespace semantics | ✅ Done |
+| 12 | P3 | Source language detection | ✅ Done |
 | 13 | P3 | Translation caching | 🔲 Pending |
 
 ---

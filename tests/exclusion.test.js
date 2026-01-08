@@ -12,28 +12,12 @@
  */
 
 describe('Exclusion Logic', () => {
-  // Helper function - mirrors expected implementation
-  function isExcludedDomain(hostname, patterns) {
-    if (!patterns || !Array.isArray(patterns)) return false;
-    return patterns.some(pattern => {
-      if (pattern.startsWith('*.')) {
-        return hostname.endsWith(pattern.slice(1));
-      }
-      return hostname === pattern || hostname.endsWith('.' + pattern);
-    });
-  }
-
-  // Helper function - mirrors expected implementation
-  function isExcludedBySelector(element, selectors) {
-    if (!selectors || !Array.isArray(selectors) || !element) return false;
-    return selectors.some(sel => {
-      try {
-        return element.matches(sel) || element.closest(sel) !== null;
-      } catch (e) {
-        return false; // Invalid selector
-      }
-    });
-  }
+  // IMPORTANT: these tests must cover REAL implementation to avoid drift.
+  // Domain exclusion lives in content script.
+  const { isExcludedDomain } = require('../src/content.js');
+  // Selector exclusion lives in DOMUtils.
+  const { DOMUtils } = require('../src/utils/dom-utils.js');
+  const isExcludedBySelector = DOMUtils.isExcludedBySelector.bind(DOMUtils);
 
   describe('isExcludedDomain()', () => {
     describe('exact domain matching', () => {

@@ -160,5 +160,21 @@ describe('prompt-templates', () => {
       // After migration, customPrompt should be undefined or explicitly null
       expect(result.customPrompt === undefined || result.customPrompt === null).toBe(true);
     });
+
+     test('should migrate prompt that contains old signature but is not exactly old default (Issue 22)', () => {
+       expect(PromptTemplates).not.toBeNull();
+       expect(PromptTemplates.OLD_DEFAULT_PROMPT).toBeDefined();
+
+       const modified = PromptTemplates.OLD_DEFAULT_PROMPT + '\n\n# User tweak: keep more literal tone.';
+       const result = PromptTemplates.migrateCustomPrompt({ customPrompt: modified });
+
+       expect(result.userTranslationPrompt).toBe(modified);
+     });
+
+     test('should NOT migrate when customPrompt equals OLD_DEFAULT_PROMPT exactly (Issue 22)', () => {
+       expect(PromptTemplates).not.toBeNull();
+       const result = PromptTemplates.migrateCustomPrompt({ customPrompt: PromptTemplates.OLD_DEFAULT_PROMPT });
+       expect(result.userTranslationPrompt).toBeUndefined();
+     });
   });
 });

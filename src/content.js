@@ -203,7 +203,13 @@ async function runTranslationProcess() {
             return;
         }
 
-        const newNodes = DOMUtils.getTranslatableElements({ excludedSelectors: config.excludedSelectors });
+        const newNodes = DOMUtils.getTranslatableElements({
+            excludedSelectors: config.excludedSelectors,
+            targetLanguage: config.targetLanguage,
+            // reserved for Issue 19 future options:
+            // translateNavigation: config.translateNavigation,
+            // translateShortTexts: config.translateShortTexts,
+        });
         console.log(`Found ${newNodes.length} new elements.`);
 
         translationQueue.push(...newNodes);
@@ -235,5 +241,6 @@ if (typeof module !== 'undefined' && module.exports) {
         translateBatch,
         translationWorker,
         runTranslationProcess,
+        isExcludedDomain,
     };
 }
