@@ -2,7 +2,6 @@
 
 This is the **high-signal entrypoint** for near-term work.
 
-- **Task-system contract**: `docs/TASK_MANAGEMENT.md`
 - **Deep implementation notes**: `docs/DESIGN_REMAINING_ISSUES.md`
 - **History / prior long-form roadmap**: `docs/roadmap/ROADMAP_ARCHIVE.md`
 

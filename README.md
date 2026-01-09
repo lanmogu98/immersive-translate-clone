@@ -1,63 +1,79 @@
-# Immersive Translate Clone (Experimental)
+# Open Translate (沉浸式翻译克隆 - 实验性)
 
-A lightweight Chrome Extension that provides "Immersive Translate" style bilingual translation for web pages. It uses your own AI API Key (DeepSeek, OpenAI, etc.) to perform context-aware, high-quality translations.
+[English](README_EN.md) | **中文**
 
-## Features
+Open Translate 是一个轻量级的 Chrome 扩展，为网页提供“沉浸式翻译”风格的双语对照。你使用自己的 AI API Key（如 DeepSeek, OpenAI, Volcengine Ark 等）进行上下文感知的高质量翻译。
 
-- **In-Place Translation**: Displays translated text as a bilingual contrast directly below the original paragraph.
-- **Smart Batching**: Groups paragraphs to preserve context and reduce API requests.
-- **Stream Rendering**: Real-time typing effect for immediate feedback (plain-text paragraphs). Rich-text paragraphs apply when the paragraph is complete to avoid token flicker.
-- **Style Inheritance**: Automatically matches the font size, weight, and alignment of the source text.
-- **Rich Text Preservation (Issue 16)**: Preserves links (`<a href>`), inline formatting, and Wikipedia-style footnote references via a safe **token protocol** (the model does **not** output HTML).
-- **Privacy Focused**: No data is sent to our servers. Your API Key is stored locally in your browser.
+## 功能特性
 
-## Installation
+- **就地双语显示**: 在原段落下方直接展示译文，形成清晰对照。
+- **智能分段批量**: 自动将段落分批（默认 5 段/批）发送给 LLM，既保留了上下文，又减少了 API 请求次数。
+- **流式渲染**: 纯文本段落会实时打字机式输出；富文本段落则在完整接收后渲染，避免样式闪烁。
+- **样式继承**: 译文自动继承原文的字号、字重与对齐方式，保持页面美观。
+- **富文本保留**: 通过安全的 **Token 协议**，完美保留链接 (`<a href>`)、行内格式（加粗/斜体）和 Wikipedia 风格的脚注引用（`[1]`），模型绝不输出 HTML。
+- **隐私优先**: 所有数据不经过中转服务器。你的 API Key 安全保存在浏览器的 `chrome.storage.sync` 中。
 
-> **Note**: This is an experimental extension and is not yet available on the Chrome Web Store. You must install it in "Developer Mode".
+## 安装指南
 
-1.  Clone or download this repository to your local machine.
-2.  Open Chrome and navigate to `chrome://extensions`.
-3.  Enable **Developer mode** (toggle in the top right corner).
-4.  Click **Load unpacked**.
-5.  Select the directory where you cloned this project (the folder containing `manifest.json`).
+> **注意**: 这是一个实验性项目，尚未上架 Chrome 应用商店。需要通过“开发者模式”安装。
 
-## Configuration (Important!)
+1. **获取代码**: 克隆或下载本仓库到本地。
+2. **生成配置 (必需)**: 本项目依赖自动生成的运行时配置，请确保安装依赖并构建：
+   ```bash
+   npm install
+   npm run build:config
+   ```
+3. **加载扩展**:
+   - 打开 Chrome 浏览器，进入 `chrome://extensions`。
+   - 打开右上角的 **开发者模式 (Developer mode)** 开关。
+   - 点击左上角的 **加载已解压的扩展程序 (Load unpacked)**。
+   - 选择本仓库的根目录（包含 `manifest.json` 的文件夹）。
 
-Before using the extension, you must configure your API credentials.
+## 配置 (Config)
 
-1.  Click the extension icon in the toolbar.
-2.  Click **Options** (or right-click the icon > Options).
-3.  **Provider & Model**:
-    *   **Provider**: Select a provider (e.g., Volcengine Ark / DeepSeek / OpenAI / Custom).
-    *   **Model**: Select a preset model for that provider.
-    *   **API Key**: Enter your secret API Key.
-4.  **Translation**:
-    *   **Target Language**: Choose the output language (default: Simplified Chinese).
-    *   **Style Prompt** (Optional): Customize translation style/tone. Protocol rules are internal and not user-editable.
-5.  **Exclusions** (Optional):
-    *   **Excluded Domains**: One domain pattern per line (supports `*.example.com`).
-    *   **Excluded Selectors**: One CSS selector per line (matching elements/ancestors will be skipped).
-6.  **Advanced**:
-    *   **API Base URL / Model ID**: Auto-filled by Provider; editable when Provider is **Custom**.
-7.  Click **Save Settings**.
+使用前，你必须配置 AI API 凭证。
 
-## Usage
+1. 点击浏览器工具栏里的扩展图标。
+2. 点击弹窗中的 **Settings**，或者右键图标选择 **选项 (Options)**。
+3. **Provider & Model (提供方与模型)**:
+   - **Provider**: 选择 AI 提供商（支持 Volcengine Ark, DeepSeek, OpenAI, 或自定义）。
+   - **Model**: 选择该提供商下的模型。
+   - **API Key**: 填入你的 API 密钥（将保存在本地）。
+4. **Translation (翻译设置)**:
+   - **Target Language**: 选择目标语言（默认：简体中文）。
+   - **Style Prompt**: (可选) 自定义翻译风格提示词（例如“保持专业语气”）。注意：协议控制符不可修改。
+5. **Exclusions (排除规则 - 可选)**:
+   - **Excluded Domains**: 排除特定域名（支持 `*.example.com`），每行一个。
+   - **Excluded Selectors**: 排除特定 CSS 选择器（如导航栏、代码块），每行一个。
+6. **Advanced (高级)**:
+   - 如果选择 **Custom** 提供商，可以在此手动输入 API Endpoint 和 Model ID。
+7. 点击 **Save Settings** 保存。
 
-1.  Navigate to any English article or webpage.
-2.  **Right-click** on the page (or click the extension icon popup).
-3.  Select **"Translate Page"**.
-4.  The extension will scan the page and begin translating paragraphs one by one.
+## 使用说明
 
-## Troubleshooting
+1. 打开任意你想翻译的英文网页。
+2. 点击浏览器右上角的扩展图标。
+3. 点击 **Translate Page** 按钮。
+4. 扩展将开始扫描页面，并按段落顺序流式显示译文。
 
--   **Nothing happens?** Check if you have saved your API Key in Options.
--   **Partial translation?** The API might be rate-limiting you. The extension processes 5 paragraphs at a time to be polite.
--   **Security**: Your API Key is stored in `chrome.storage.sync`. It is never hardcoded in the source code.
+## 常见问题 (Troubleshooting)
 
-## Development
+- **点击没反应？** 
+  请检查设置页是否已保存 API Key。
+- **无法翻译当前页面？**
+  浏览器内部页面（如 `chrome://settings`, `about:blank`）出于安全原因不允许注入翻译脚本。
+- **只翻译了一部分？**
+  可能触发了 API 限流。扩展默认每批处理 5 个段落，请稍作等待或检查配额。
+- **关于安全？**
+  API Key 仅保存在你的浏览器本地 (`chrome.storage.sync`)，绝不会上传到任何服务器，也不会硬编码在源码中。
 
-Run unit tests:
+## 开发与贡献
 
+- **Agent-first 开发模式 (95%+)**: 本产品 **95%** 以上的代码由 LLM Agent 编写。人类主要负责定义产品方向与 Review；设计、实现和测试均由 Agent 完成。
+- **Agent 工作流规范**: 参见 [lanmogu98/dev-workflow](https://github.com/lanmogu98/dev-workflow)。
+- **开发者入口**: 请阅读 `DEVELOPER_GUIDE.md` 了解架构、约束及如何运行验证。
+
+运行单元测试:
 ```bash
 npm install
 npm test
