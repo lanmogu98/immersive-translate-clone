@@ -98,6 +98,11 @@ async function streamTranslation(text, config, port) {
     try {
         // Use apiUrl as-is if it already contains endpoint path, otherwise append
         const endpoint = apiUrl.endsWith('/chat/completions') ? apiUrl : `${apiUrl}/chat/completions`;
+
+        // Issue 25: Wrap untrusted web page content in boundary markers
+        // This pairs with SECURITY RULES in PROTOCOL_PROMPT to prevent prompt injection
+        const wrappedText = `<translate_input>\n${text}\n</translate_input>`;
+
         const response = await fetch(endpoint, {
             method: 'POST',
             headers: {
@@ -108,7 +113,7 @@ async function streamTranslation(text, config, port) {
                 model: modelName,
                 messages: [
                     { role: 'system', content: systemPrompt },
-                    { role: 'user', content: text }
+                    { role: 'user', content: wrappedText }
                 ],
                 stream: true
             }),
