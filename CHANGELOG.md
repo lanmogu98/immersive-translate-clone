@@ -2,9 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased] - 2026-01-08
+## [Unreleased] - 2026-01-09
 
 ### Fixed
+-   **Issue 26: CSS Leak**: Skip `<style>` and `<script>` elements during DOM scanning to prevent CSS selectors from leaking into translation output.
+-   **Issue 27: Math Formulas**: Skip math formula elements (`<math>`, `.mwe-math-element`, `.katex`, `.MathJax`) to prevent formulas from being incorrectly translated.
 -   **P0: Missing Method**: Added `DOMUtils.showError()` method that was being called but didn't exist, causing runtime errors on batch translation failures.
 -   **P0: Double Callback**: Fixed `onDone` callback being called twice in `llm-client.js` when errors occurred, preventing unpredictable behavior.
 -   **P0: Silent Failure**: Popup now shows user-friendly error when translation cannot run on browser internal pages (chrome://, about://, etc.). Also attempts to inject content script if not already loaded.

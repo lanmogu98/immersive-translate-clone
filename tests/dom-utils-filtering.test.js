@@ -299,6 +299,131 @@ describe('DOMUtils - Smart Filtering (shouldTranslate)', () => {
     });
   });
 
+  describe('Issue 26: skip style/script elements', () => {
+    test('should skip <style> elements and their content', () => {
+      document.body.innerHTML = `
+        <style id="inline-style">.mw-parser-output .toclimit-2 { display: none; }</style>
+        <p id="content">This is regular content that should be translated.</p>
+      `;
+      makeAllVisible('style, p');
+
+      const elements = DOMUtils.getTranslatableElements();
+      // Style element should NOT be in the results
+      const styleEl = elements.find(e => e.element.id === 'inline-style');
+      expect(styleEl).toBeUndefined();
+      // Regular content should be included
+      const contentEl = elements.find(e => e.element.id === 'content');
+      expect(contentEl).toBeDefined();
+    });
+
+    test('should skip elements inside <style>', () => {
+      document.body.innerHTML = `
+        <div>
+          <style>.some-class { color: red; }</style>
+          <p id="text">Normal paragraph text here.</p>
+        </div>
+      `;
+      makeAllVisible('div, style, p');
+
+      const elements = DOMUtils.getTranslatableElements();
+      const textEl = elements.find(e => e.element.id === 'text');
+      expect(textEl).toBeDefined();
+      // No CSS selectors should leak into results
+      const hasCSS = elements.some(e => e.text && e.text.includes('{'));
+      expect(hasCSS).toBe(false);
+    });
+
+    test('should skip <script> elements', () => {
+      document.body.innerHTML = `
+        <script id="inline-script">console.log("hello world");</script>
+        <p id="content">Regular content here.</p>
+      `;
+      makeAllVisible('script, p');
+
+      const elements = DOMUtils.getTranslatableElements();
+      const scriptEl = elements.find(e => e.element.id === 'inline-script');
+      expect(scriptEl).toBeUndefined();
+      const contentEl = elements.find(e => e.element.id === 'content');
+      expect(contentEl).toBeDefined();
+    });
+  });
+
+  describe('Issue 27: skip math formula elements', () => {
+    test('should skip <math> elements', () => {
+      document.body.innerHTML = `
+        <p id="text">The formula is <math id="formula"><mi>x</mi><mo>=</mo><mn>1</mn></math> which means...</p>
+        <p id="content">This is a normal paragraph.</p>
+      `;
+      makeAllVisible('p, math');
+
+      const elements = DOMUtils.getTranslatableElements();
+      // Math element itself should not be a candidate (not in selector list)
+      // But more importantly, elements containing only math should be handled
+      const contentEl = elements.find(e => e.element.id === 'content');
+      expect(contentEl).toBeDefined();
+    });
+
+    test('should skip elements inside .mwe-math-element (Wikipedia)', () => {
+      document.body.innerHTML = `
+        <span class="mwe-math-element">
+          <span id="math-text" class="mwe-math-mathml-inline">V π ( s ) = E [ G | S 0 = s ]</span>
+        </span>
+        <p id="content">Regular paragraph content.</p>
+      `;
+      makeAllVisible('span, p');
+
+      const elements = DOMUtils.getTranslatableElements();
+      const mathEl = elements.find(e => e.element.id === 'math-text');
+      expect(mathEl).toBeUndefined();
+      const contentEl = elements.find(e => e.element.id === 'content');
+      expect(contentEl).toBeDefined();
+    });
+
+    test('should skip elements inside .katex (KaTeX renderer)', () => {
+      document.body.innerHTML = `
+        <span class="katex">
+          <span id="katex-text" class="katex-mathml">x = 1</span>
+        </span>
+        <p id="content">Normal text content here.</p>
+      `;
+      makeAllVisible('span, p');
+
+      const elements = DOMUtils.getTranslatableElements();
+      const katexEl = elements.find(e => e.element.id === 'katex-text');
+      expect(katexEl).toBeUndefined();
+    });
+
+    test('should skip elements inside .MathJax (MathJax renderer)', () => {
+      document.body.innerHTML = `
+        <span class="MathJax">
+          <span id="mathjax-text">∑ x = n</span>
+        </span>
+        <p id="content">Regular content paragraph.</p>
+      `;
+      makeAllVisible('span, p');
+
+      const elements = DOMUtils.getTranslatableElements();
+      const mathjaxEl = elements.find(e => e.element.id === 'mathjax-text');
+      expect(mathjaxEl).toBeUndefined();
+    });
+
+    test('should skip block-level math containers', () => {
+      document.body.innerHTML = `
+        <div class="mwe-math-element" id="block-math">
+          <img src="formula.svg" alt="V(s) = E[G|S_0=s]">
+        </div>
+        <p id="content">Text after the formula.</p>
+      `;
+      makeAllVisible('div, p');
+
+      const elements = DOMUtils.getTranslatableElements();
+      const mathDiv = elements.find(e => e.element.id === 'block-math');
+      expect(mathDiv).toBeUndefined();
+      const contentEl = elements.find(e => e.element.id === 'content');
+      expect(contentEl).toBeDefined();
+    });
+  });
+
   describe('visibility checks', () => {
     test('should skip elements with offsetParent === null (hidden)', () => {
       const p = document.createElement('p');

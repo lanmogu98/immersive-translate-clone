@@ -42,6 +42,12 @@ class DOMUtils {
             // Issue 19: Skip interactive UI chrome (buttons/inputs/menus)
             if (this.isInteractiveElement(element)) continue;
 
+            // Issue 26: Skip style/script elements
+            if (this.isStyleOrScript(element)) continue;
+
+            // Issue 27: Skip math formula elements
+            if (this.isMathElement(element)) continue;
+
             // Issue 19: Skip navigation-ish areas by default (even if long)
             if (!translateNavigation && this.isInNavigationArea(element)) continue;
 
@@ -106,6 +112,33 @@ class DOMUtils {
         // Role-based buttons
         if (element.getAttribute && element.getAttribute('role') === 'button') return true;
         if (element.closest('[role="button"]')) return true;
+        return false;
+    }
+
+    /**
+     * Issue 26: Check if element is or is inside a style/script tag
+     * These elements contain code, not translatable content
+     */
+    static isStyleOrScript(element) {
+        if (!element) return false;
+        // Check if the element itself is style/script
+        const tagName = element.tagName;
+        if (tagName === 'STYLE' || tagName === 'SCRIPT') return true;
+        // Check if inside style/script
+        if (element.closest && element.closest('style, script')) return true;
+        return false;
+    }
+
+    /**
+     * Issue 27: Check if element is or is inside a math formula container
+     * Supports: MathML (<math>), Wikipedia (.mwe-math-element), KaTeX (.katex), MathJax (.MathJax)
+     */
+    static isMathElement(element) {
+        if (!element) return false;
+        // Check if the element itself is a math element
+        if (element.tagName === 'MATH') return true;
+        // Check if inside any math container
+        if (element.closest && element.closest('math, .mwe-math-element, .katex, .MathJax, .MathJax_Display')) return true;
         return false;
     }
 

@@ -18,8 +18,8 @@ This is the **high-signal entrypoint** for near-term work.
 
 | ID | Priority | Item | Status | GH |
 | --- | --- | --- | --- | --- |
-| 26 | P1 | Skip `<style>` tags: CSS selectors leaking into translation output | 🔲 Pending | — |
-| 27 | P1 | Skip math elements (`<math>`, `.mwe-math-element`): formulas should not be translated | 🔲 Pending | — |
+| 26 | P1 | Skip `<style>` tags: CSS selectors leaking into translation output | ✅ Done | — |
+| 27 | P1 | Skip math elements (`<math>`, `.mwe-math-element`): formulas should not be translated | ✅ Done | — |
 | 13 | P3 | Translation caching | 🔲 Pending | — |
 | 28 | P3 | Configurable batch size: allow user to set paragraphs per request (default 5) | 🔲 Pending | — |
 
