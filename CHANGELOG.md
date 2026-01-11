@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 
 ### Planned
 -   **Issue 30: Update Extension Icon**: Replace current extension icons with new `imagen.png` file. Need to generate proper sizes (16x16, 48x48, 128x128) from the source image and update manifest references.
+-   **Issue 31: Smart Batch Size Configuration**: Increase default batch size from 5 to 10, add user-configurable batch size in Settings, and implement intelligent fallback based on model context/output limits.
 
 ### Security
 -   **Prompt Injection Protection (Issue 25)**: Web page content is now treated as untrusted input. Added `<translate_input>` boundary markers around user content and explicit SECURITY RULES in the system prompt instructing the LLM to ignore any embedded instructions/commands. User-configurable translation style prompts are now sanitized to remove template placeholders and boundary markers, with a 500-character length limit.

@@ -43,6 +43,21 @@
 
 ## 📝 待实现的需求（Planned Features）
 
+### Issue 31: 智能批量翻译配置（Smart Batch Size Configuration）
+
+| 项目 | 内容 |
+|------|------|
+| **需求** | 1. 默认batch size从5增加到10，提高翻译效率<br>2. 在Settings页面提供用户自定义batch size入口<br>3. 根据模型的context/output限制进行智能校验和fallback |
+| **优先级** | P1 - High（直接影响翻译效率和API成本） |
+| **当前状态** | - `BATCH_SIZE = 5` 硬编码在 `src/content.js:16`<br>- `llm_config.yml` 已包含每个provider-model的 `context_window` 和 `max_tokens`<br>- Options页面目前无batch size设置 |
+| **改动文件** | `src/content.js`（batch逻辑）, `src/options/options.html`, `src/options/options.js`, `src/utils/batch-calculator.js`（新建） |
+| **技术方案** | **1. 配置中心化**（已具备）<br>`llm_config.yml` 已包含所需字段：<br>- `context_window`: 输入上下文限制<br>- `max_tokens`: 输出token限制<br><br>**2. Token Ratio 配置**（需新增）<br>不同语言翻译后的token膨胀系数：<br>```yaml<br>_token_ratios:<br>  en_to_zh: 0.6    # 英→中：中文更紧凑<br>  en_to_ja: 0.8    # 英→日<br>  en_to_ko: 0.7    # 英→韩<br>  zh_to_en: 1.8    # 中→英：英文更长<br>  default: 1.2     # 保守默认值<br>```<br><br>**3. Batch Calculator 核心逻辑**<br>```javascript<br>// src/utils/batch-calculator.js<br>class BatchCalculator {<br>  static TOKEN_RATIOS = { ... };<br>  static FALLBACK_SEQUENCE = [10, 5, 3, 1];<br>  <br>  // 估算文本的token数（简化：1 token ≈ 4 chars for EN, 1.5 chars for CJK）<br>  static estimateTokens(text) { ... }<br>  <br>  // 计算安全的batch size<br>  static calculateSafeBatchSize({<br>    userBatchSize,      // 用户设置值<br>    paragraphs,         // 待翻译段落数组<br>    contextWindow,      // 模型context限制<br>    maxOutputTokens,    // 模型output限制<br>    targetLanguage,     // 目标语言（用于token ratio）<br>    systemPromptTokens  // 系统prompt占用的token<br>  }) {<br>    // 原则A：输入不超过context的2/3<br>    const maxInputTokens = Math.floor(contextWindow * 2 / 3);<br>    <br>    // 原则B：估算输出不超过max_tokens<br>    const tokenRatio = this.getTokenRatio(targetLanguage);<br>    <br>    // 从用户设置值开始，逐步fallback<br>    let candidates = [userBatchSize, ...this.FALLBACK_SEQUENCE];<br>    candidates = [...new Set(candidates)].filter(n => n <= userBatchSize).sort((a,b) => b-a);<br>    <br>    for (const size of candidates) {<br>      const batchText = paragraphs.slice(0, size).join('\\n');<br>      const inputTokens = this.estimateTokens(batchText) + systemPromptTokens;<br>      const estimatedOutput = inputTokens * tokenRatio;<br>      <br>      if (inputTokens <= maxInputTokens && estimatedOutput <= maxOutputTokens) {<br>        return size;<br>      }<br>    }<br>    return 1; // 最终fallback<br>  }<br>}<br>```<br><br>**4. Settings UI**<br>在"Advanced"区域添加：<br>- Label: "Paragraphs per batch"<br>- Input: number, min=1, max=20, default=10<br>- Help text: "Higher values improve efficiency but may hit model limits" |
+| **Fallback原则评估** | **用户提出的原则**：`10 -> 5 -> 3 -> 1`<br><br>**评估**：✅ 合理，但建议微调：<br>1. 序列合理：覆盖了常见的安全值<br>2. 建议补充：如果用户设置 > 10，应先尝试用户设置值，再fallback到10<br>3. 最终序列：`[userValue, 10, 5, 3, 1].filter(n => n <= userValue).sort(desc)`<br><br>**额外建议**：<br>- 添加 fallback 时的 console.warn 日志，方便调试<br>- 考虑缓存计算结果，避免每次batch都重算 |
+| **测试计划** | - 验证默认batch size为10<br>- 验证用户设置batch size后正确存储和读取<br>- 单测 `BatchCalculator.estimateTokens()` 的准确性<br>- 单测 `calculateSafeBatchSize()` 的fallback逻辑<br>- 集成测试：使用超长段落触发fallback<br>- 验证不同provider-model组合的限制检查 |
+| **配置状态检查** | ✅ `llm_config.yml` 已包含所有provider-model的：<br>- `context_window`（8个provider全部配置）<br>- `max_tokens`（8个provider全部配置）<br><br>⚠️ 需新增：<br>- `_token_ratios` 配置块（语言对的token膨胀系数） |
+
+---
+
 ### Issue 30: 更新扩展图标（Update Extension Icon）
 
 | 项目 | 内容 |
