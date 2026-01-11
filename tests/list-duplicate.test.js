@@ -282,5 +282,56 @@ describe('Issue 29: Duplicate Translation in List Items', () => {
       expect(elementIds).toContain('child');
       expect(elementIds).not.toContain('empty-parent');
     });
+
+    test('mixed content div: direct text SHOULD be translated (Issue 29 regression)', () => {
+      // This tests the REGRESSION from Issue 29 fix
+      // When a div has direct text AND translatable children,
+      // the direct text should NOT be swallowed
+      document.body.innerHTML = `
+        <div id="mixed-div">
+          Introduction text that should be translated
+          <ul>
+            <li id="item1">First list item with enough text</li>
+          </ul>
+        </div>
+      `;
+      makeAllVisible('div, ul, li');
+
+      const elements = DOMUtils.getTranslatableElements();
+      const elementIds = elements.map(e => e.element.id);
+
+      // The <li> should be translated
+      expect(elementIds).toContain('item1');
+
+      // The parent div with direct text should ALSO be translated
+      // This is the key assertion for the regression fix
+      expect(elementIds).toContain('mixed-div');
+
+      // Verify the div's text includes the introduction
+      const mixedDiv = elements.find(e => e.element.id === 'mixed-div');
+      expect(mixedDiv).toBeDefined();
+      expect(mixedDiv.text).toContain('Introduction text');
+    });
+
+    test('pure container div (no direct text) should NOT be translated', () => {
+      // This ensures we still prevent duplicates for pure containers
+      document.body.innerHTML = `
+        <div id="pure-container">
+          <p id="para1">First paragraph with enough text to translate</p>
+          <p id="para2">Second paragraph with enough text to translate</p>
+        </div>
+      `;
+      makeAllVisible('div, p');
+
+      const elements = DOMUtils.getTranslatableElements();
+      const elementIds = elements.map(e => e.element.id);
+
+      // Paragraphs should be translated
+      expect(elementIds).toContain('para1');
+      expect(elementIds).toContain('para2');
+
+      // Pure container (no direct text) should NOT be translated
+      expect(elementIds).not.toContain('pure-container');
+    });
   });
 });

@@ -64,13 +64,25 @@ class DOMUtils {
                 continue;
             }
 
-            // Issue 29: Skip container elements that have translatable child elements
-            // This prevents duplicate translation where both parent and child get translated
-            if (this.hasTranslatableDescendants(element)) {
+            // Issue 29: Handle containers with translatable descendants
+            const hasDescendants = this.hasTranslatableDescendants(element);
+            const hasDirectTxt = this.hasDirectText(element);
+
+            // Skip PURE containers (no direct text) - their children will be translated
+            if (hasDescendants && !hasDirectTxt) {
                 continue;
             }
 
-            const rawText = (typeof element.innerText === 'string' ? element.innerText : element.textContent || '').trim();
+            // For mixed-content elements (has both direct text AND translatable children),
+            // only extract the direct text to avoid duplicating child text
+            let rawText;
+            if (hasDescendants && hasDirectTxt) {
+                // Mixed content: only translate direct text nodes
+                rawText = this.getDirectTextContent(element);
+            } else {
+                // Normal case: use full text content
+                rawText = (typeof element.innerText === 'string' ? element.innerText : element.textContent || '').trim();
+            }
             if (!rawText) continue;
 
             // Skip pure numbers
@@ -195,6 +207,22 @@ class DOMUtils {
             }
         }
         return false;
+    }
+
+    /**
+     * Get only the direct text content of an element (excluding text from child elements)
+     * Used for mixed-content containers where we want to translate only the direct text
+     * @param {Element} element
+     * @returns {string} Concatenated direct text nodes, trimmed
+     */
+    static getDirectTextContent(element) {
+        let text = '';
+        for (let node of element.childNodes) {
+            if (node.nodeType === Node.TEXT_NODE) {
+                text += node.textContent;
+            }
+        }
+        return text.trim();
     }
 
     /**

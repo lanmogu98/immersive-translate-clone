@@ -8,7 +8,7 @@ All notable changes to this project will be documented in this file.
 -   **Issue 30: Update Extension Icon**: Regenerated extension icons (16x16, 48x48, 128x128) from new source image `icons/imagen.png` using sharp. Added `scripts/generate-icons.js` for reproducible icon generation.
 
 ### Fixed
--   **Issue 29: Duplicate Translation in List Items**: Fixed bug where list items (`<li>`) were translated twice - once correctly in place, and again as merged text at the page bottom. Root cause: parent containers (e.g., `<div>`) with direct text were being selected alongside their translatable child elements. Added `hasTranslatableDescendants()` check to skip parent elements that contain translatable leaf containers (`<p>`, `<li>`, `<h1-6>`, etc.).
+-   **Issue 29 Regression Fix: Mixed Content Containers**: Fixed regression where text above bulletpoints was being swallowed. The original Issue 29 fix was too aggressive - it skipped ALL containers with translatable descendants, including those with direct text. New behavior: (1) Pure containers (no direct text) are still skipped to prevent duplicates; (2) Mixed-content containers (direct text + children) now only translate their direct text nodes, preserving both the intro text and child element translations. Added `getDirectTextContent()` method for extracting only direct text.
 -   **Issue 32: PDF Viewer Hijacks Browser**: Disabled incomplete PDF redirect logic that was intercepting all `.pdf` URLs and redirecting to a non-functional placeholder page. Browser's native PDF viewing is now restored. The PDF viewer feature will be re-enabled when PDF.js integration is complete.
 
 ### Security
