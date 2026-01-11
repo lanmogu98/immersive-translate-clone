@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 -   **Issue 29 Regression Fix: Mixed Content Containers**: Fixed regression where text above bulletpoints was being swallowed. The original Issue 29 fix was too aggressive - it skipped ALL containers with translatable descendants, including those with direct text. New behavior: (1) Pure containers (no direct text) are still skipped to prevent duplicates; (2) Mixed-content containers (direct text + children) now only translate their direct text nodes, preserving both the intro text and child element translations. Added `getDirectTextContent()` method for extracting only direct text.
+-   **Code Review Fixes (Issue 29)**: (1) Fixed `getDirectTextContent()` to properly join text nodes with spaces - prevents adjacent text nodes from being concatenated without spacing (e.g., `HelloWorld` → `Hello World`). (2) Fixed threshold inconsistency in `hasTranslatableDescendants()` - now accepts `minLen` parameter for consistent behavior with `getTranslatableElements()`.
 -   **Issue 32: PDF Viewer Hijacks Browser**: Disabled incomplete PDF redirect logic that was intercepting all `.pdf` URLs and redirecting to a non-functional placeholder page. Browser's native PDF viewing is now restored. The PDF viewer feature will be re-enabled when PDF.js integration is complete.
 
 ### Security

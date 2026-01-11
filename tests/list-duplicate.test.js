@@ -333,5 +333,43 @@ describe('Issue 29: Duplicate Translation in List Items', () => {
       // Pure container (no direct text) should NOT be translated
       expect(elementIds).not.toContain('pure-container');
     });
+
+    test('getDirectTextContent should preserve spacing between text nodes', () => {
+      // When multiple direct text nodes exist (separated by inline elements),
+      // the extracted text should have proper spacing
+      document.body.innerHTML = `
+        <div id="spaced-div">
+          Hello
+          <span>ignored</span>
+          World
+          <ul>
+            <li id="item">List item with enough text here</li>
+          </ul>
+        </div>
+      `;
+      makeAllVisible('div, span, ul, li');
+
+      const elements = DOMUtils.getTranslatableElements();
+      const spacedDiv = elements.find(e => e.element.id === 'spaced-div');
+
+      expect(spacedDiv).toBeDefined();
+      // The text should have space between "Hello" and "World", not "HelloWorld"
+      expect(spacedDiv.text).toMatch(/Hello\s+World/);
+    });
+
+    test('getDirectTextContent should add space between adjacent text nodes (no whitespace in HTML)', () => {
+      // Edge case: text nodes directly adjacent with no whitespace in HTML
+      // e.g., <div>Hello<span>X</span>World</div>
+      // The direct text is "Hello" and "World" - should be "Hello World" not "HelloWorld"
+      document.body.innerHTML = `<div id="adjacent-div">First part<span>ignored</span>Second part<ul><li id="item">List item text here</li></ul></div>`;
+      makeAllVisible('div, span, ul, li');
+
+      const elements = DOMUtils.getTranslatableElements();
+      const adjacentDiv = elements.find(e => e.element.id === 'adjacent-div');
+
+      expect(adjacentDiv).toBeDefined();
+      // Should have space between "First part" and "Second part"
+      expect(adjacentDiv.text).toBe('First part Second part');
+    });
   });
 });

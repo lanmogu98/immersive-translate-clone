@@ -65,7 +65,10 @@ class DOMUtils {
             }
 
             // Issue 29: Handle containers with translatable descendants
-            const hasDescendants = this.hasTranslatableDescendants(element);
+            // Use MAIN_MIN_LEN as threshold since descendants could be in main content
+            // This ensures we detect all potentially translatable descendants
+            const descendantMinLen = Math.min(MAIN_MIN_LEN, DEFAULT_MIN_LEN);
+            const hasDescendants = this.hasTranslatableDescendants(element, descendantMinLen);
             const hasDirectTxt = this.hasDirectText(element);
 
             // Skip PURE containers (no direct text) - their children will be translated
@@ -213,24 +216,27 @@ class DOMUtils {
      * Get only the direct text content of an element (excluding text from child elements)
      * Used for mixed-content containers where we want to translate only the direct text
      * @param {Element} element
-     * @returns {string} Concatenated direct text nodes, trimmed
+     * @returns {string} Concatenated direct text nodes with proper spacing, trimmed
      */
     static getDirectTextContent(element) {
-        let text = '';
+        const texts = [];
         for (let node of element.childNodes) {
             if (node.nodeType === Node.TEXT_NODE) {
-                text += node.textContent;
+                const t = node.textContent.trim();
+                if (t) texts.push(t);
             }
         }
-        return text.trim();
+        return texts.join(' ');
     }
 
     /**
      * Issue 29: Check if element contains translatable descendant elements
      * Returns true if the element has child elements that would be selected for translation
      * This prevents parent containers from being translated when their children will be
+     * @param {Element} element - The element to check
+     * @param {number} [minLen=8] - Minimum text length threshold (should match getTranslatableElements)
      */
-    static hasTranslatableDescendants(element) {
+    static hasTranslatableDescendants(element, minLen = 8) {
         if (!element) return false;
 
         // Leaf-level containers that are typically translated individually
@@ -243,7 +249,7 @@ class DOMUtils {
             for (const desc of descendants) {
                 // Check if descendant has meaningful text content
                 const text = (desc.textContent || '').trim();
-                if (text.length >= 8 && !/^\d+$/.test(text)) {
+                if (text.length >= minLen && !/^\d+$/.test(text)) {
                     return true;
                 }
             }
