@@ -19,16 +19,19 @@ try {
     // ignore (tests / non-extension runtime)
 }
 
-// PDF Redirect Logic
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if (changeInfo.status === 'loading' && tab.url && tab.url.toLowerCase().endsWith('.pdf')) {
-        if (tab.url.startsWith(chrome.runtime.getURL('src/pdf-viewer/pdf_viewer.html'))) {
-            return;
-        }
-        const viewerUrl = chrome.runtime.getURL('src/pdf-viewer/pdf_viewer.html') + '?file=' + encodeURIComponent(tab.url);
-        chrome.tabs.update(tabId, { url: viewerUrl });
-    }
-});
+// PDF Redirect Logic - DISABLED (Issue 32: incomplete feature breaks browser PDF viewing)
+// The PDF viewer is a placeholder and does not actually render PDFs.
+// Re-enable when PDF.js integration is complete.
+//
+// chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+//     if (changeInfo.status === 'loading' && tab.url && tab.url.toLowerCase().endsWith('.pdf')) {
+//         if (tab.url.startsWith(chrome.runtime.getURL('src/pdf-viewer/pdf_viewer.html'))) {
+//             return;
+//         }
+//         const viewerUrl = chrome.runtime.getURL('src/pdf-viewer/pdf_viewer.html') + '?file=' + encodeURIComponent(tab.url);
+//         chrome.tabs.update(tabId, { url: viewerUrl });
+//     }
+// });
 
 // ==========================================
 // API Proxy Logic (Fix for CORS/CSP issues)
