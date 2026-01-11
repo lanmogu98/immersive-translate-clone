@@ -25,6 +25,22 @@
 
 ## 🔴 新发现的 Bug（待修复）
 
+### Issue 32: PDF Viewer 劫持浏览器（PDF Viewer Hijacks Browser）
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 插件会拦截所有 `.pdf` URL 并重定向到一个**未完成的placeholder页面**，导致：<br>1. 用户无法正常查看任何PDF文件<br>2. 浏览器的原生PDF查看功能被破坏<br>3. 页面只显示 "PDF Viewer Placeholder" 和mock内容 |
+| **优先级** | P0 - Critical（破坏浏览器核心功能） |
+| **重现步骤** | 1. 安装扩展<br>2. 打开任意PDF URL（如 https://web.stanford.edu/class/cs234/slides/lecture1pre.pdf）<br>3. 观察URL被重定向到 `chrome-extension://xxx/src/pdf-viewer/pdf_viewer.html?file=...`<br>4. 页面显示placeholder而非实际PDF内容 |
+| **根本原因** | `src/background.js:22-31` 中的PDF重定向逻辑：<br>```javascript<br>chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {<br>  if (changeInfo.status === 'loading' && tab.url && tab.url.toLowerCase().endsWith('.pdf')) {<br>    const viewerUrl = chrome.runtime.getURL('src/pdf-viewer/pdf_viewer.html') + '?file=' + encodeURIComponent(tab.url);<br>    chrome.tabs.update(tabId, { url: viewerUrl });<br>  }<br>});<br>```<br><br>PDF viewer本身是未完成的功能：<br>- `src/pdf-viewer/pdf_viewer.html` 只是placeholder<br>- 缺少 PDF.js 库（`lib/` 目录为空）<br>- `viewer.js` 只有mock实现 |
+| **影响范围** | - 所有以 `.pdf` 结尾的URL<br>- 包括本地PDF、网络PDF、下载的PDF等 |
+| **改动文件** | `src/background.js`（移除/禁用PDF重定向） |
+| **修复方案** | **方案 A - 临时修复（推荐）**：<br>注释或删除 `src/background.js` 中的PDF重定向代码（第22-31行），恢复浏览器原生PDF查看功能<br><br>**方案 B - 完整实现**：<br>1. 下载并集成 PDF.js 库到 `lib/` 目录<br>2. 完善 `viewer.js` 实现真正的PDF渲染<br>3. 添加翻译overlay功能<br>（工作量大，建议后续版本再考虑） |
+| **建议修复代码** | ```javascript<br>// src/background.js - 注释掉第22-31行<br>// PDF Redirect Logic - DISABLED (Issue 32: incomplete feature)<br>// chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {<br>//     if (changeInfo.status === 'loading' && tab.url && tab.url.toLowerCase().endsWith('.pdf')) {<br>//         ...<br>//     }<br>// });<br>``` |
+| **测试计划** | - 修复后打开任意PDF URL，验证使用浏览器原生PDF viewer<br>- 验证扩展其他功能不受影响<br>- 验证不再出现placeholder页面 |
+
+---
+
 ### Issue 29: 列表项内容重复翻译（Duplicate Translation in List Items）
 
 | 项目 | 内容 |
