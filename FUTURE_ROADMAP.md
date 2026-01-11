@@ -19,7 +19,11 @@ This is the **high-signal entrypoint** for near-term work.
 | ID | Priority | Item | Status | GH |
 | --- | --- | --- | --- | --- |
 | 31 | P1 | Smart batch size: increase default to 10, add Settings UI, implement context/output limit fallback | 🔲 Pending | — |
+| 33 | P2 | Extract magic numbers as named constants: consolidate `8`, `3`, `10` thresholds in `dom-utils.js` with documented rationale | 🔲 Pending | — |
+| 34 | P2 | Improve visibility check: `offsetParent === null` misses `position: fixed` elements; add `getComputedStyle` fallback | 🔲 Pending | — |
 | 13 | P3 | Translation caching | 🔲 Pending | — |
+| 35 | P3 | Refactor `getTranslatableElements` to pipeline pattern: split 95-line function into composable filter stages | 🔲 Pending | — |
+| 36 | P3 | Add Shadow DOM support: traverse shadow roots for Web Components (YouTube, GitHub Codespaces, etc.) | 🔲 Pending | — |
 
 ### Recently Done
 
