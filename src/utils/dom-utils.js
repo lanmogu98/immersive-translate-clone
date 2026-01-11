@@ -64,6 +64,12 @@ class DOMUtils {
                 continue;
             }
 
+            // Issue 29: Skip container elements that have translatable child elements
+            // This prevents duplicate translation where both parent and child get translated
+            if (this.hasTranslatableDescendants(element)) {
+                continue;
+            }
+
             const rawText = (typeof element.innerText === 'string' ? element.innerText : element.textContent || '').trim();
             if (!rawText) continue;
 
@@ -188,6 +194,33 @@ class DOMUtils {
                 return true;
             }
         }
+        return false;
+    }
+
+    /**
+     * Issue 29: Check if element contains translatable descendant elements
+     * Returns true if the element has child elements that would be selected for translation
+     * This prevents parent containers from being translated when their children will be
+     */
+    static hasTranslatableDescendants(element) {
+        if (!element) return false;
+
+        // Leaf-level containers that are typically translated individually
+        // These are the "semantic" text containers that should be translated as units
+        const LEAF_CONTAINERS = ['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI', 'BLOCKQUOTE', 'FIGCAPTION', 'DT', 'DD'];
+
+        // Check if element contains any leaf containers with significant text
+        for (const tag of LEAF_CONTAINERS) {
+            const descendants = element.querySelectorAll(tag);
+            for (const desc of descendants) {
+                // Check if descendant has meaningful text content
+                const text = (desc.textContent || '').trim();
+                if (text.length >= 8 && !/^\d+$/.test(text)) {
+                    return true;
+                }
+            }
+        }
+
         return false;
     }
 
