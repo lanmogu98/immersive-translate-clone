@@ -2,7 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased] - 2026-01-09
+## [Unreleased] - 2026-01-11
+
+### Known Issues
+-   **Issue 29: Duplicate Translation in List Items**: Bulletpoint content is being translated twice - once normally within the list item, and once again as merged paragraph text inserted in the wrong location. This causes visual duplication and layout issues on pages with bulleted/numbered lists.
 
 ### Security
 -   **Prompt Injection Protection (Issue 25)**: Web page content is now treated as untrusted input. Added `<translate_input>` boundary markers around user content and explicit SECURITY RULES in the system prompt instructing the LLM to ignore any embedded instructions/commands. User-configurable translation style prompts are now sanitized to remove template placeholders and boundary markers, with a 500-character length limit.
