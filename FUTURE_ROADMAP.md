@@ -19,13 +19,13 @@ This is the **high-signal entrypoint** for near-term work.
 | ID | Priority | Item | Status | GH |
 | --- | --- | --- | --- | --- |
 | 31 | P1 | Smart batch size: increase default to 10, add Settings UI, implement context/output limit fallback | 🔲 Pending | — |
-| 30 | P2 | Update extension icon: generate sizes from `icons/imagen.png` | 🔲 Pending | — |
 | 13 | P3 | Translation caching | 🔲 Pending | — |
 
 ### Recently Done
 
 | ID | Priority | Item | Status | GH |
 | --- | --- | --- | --- | --- |
+| 30 | P2 | Update extension icon: generated 16/48/128px icons from `imagen.png` | ✅ Done | — |
 | 29 | P0 | Duplicate translation in list items: skip parent containers with translatable descendants | ✅ Done | — |
 | 32 | P0 | PDF viewer hijacks browser: disabled incomplete PDF redirect to restore native PDF viewing | ✅ Done | — |
 | 26 | P1 | Skip `<style>` tags: CSS selectors leaking into translation output | ✅ Done | — |

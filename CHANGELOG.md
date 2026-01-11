@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased] - 2026-01-11
 
+### Changed
+-   **Issue 30: Update Extension Icon**: Regenerated extension icons (16x16, 48x48, 128x128) from new source image `icons/imagen.png` using sharp. Added `scripts/generate-icons.js` for reproducible icon generation.
+
 ### Fixed
 -   **Issue 29: Duplicate Translation in List Items**: Fixed bug where list items (`<li>`) were translated twice - once correctly in place, and again as merged text at the page bottom. Root cause: parent containers (e.g., `<div>`) with direct text were being selected alongside their translatable child elements. Added `hasTranslatableDescendants()` check to skip parent elements that contain translatable leaf containers (`<p>`, `<li>`, `<h1-6>`, etc.).
 -   **Issue 32: PDF Viewer Hijacks Browser**: Disabled incomplete PDF redirect logic that was intercepting all `.pdf` URLs and redirecting to a non-functional placeholder page. Browser's native PDF viewing is now restored. The PDF viewer feature will be re-enabled when PDF.js integration is complete.
