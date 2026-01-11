@@ -29,15 +29,17 @@
 
 | 项目 | 内容 |
 |------|------|
-| **问题** | 列表项（`<li>` 内的 bulletpoint 内容）被翻译了两次：<br>1. 正常翻译：在列表项内部正确位置<br>2. 重复翻译：作为合并段落文本被插入到错误位置（不属于该列表项的地方）<br>结果是页面上出现视觉重复，且第二次翻译破坏了布局结构 |
-| **优先级** | P1 - High（影响翻译质量和用户体验） |
-| **重现场景** | 包含项目列表（`<ul>`/`<ol>`）的页面，尤其是教育内容、文档、学习材料等使用大量 bulletpoints 的页面 |
-| **可能原因（需调查）** | 1. DOM 扫描逻辑可能将 `<li>` 作为独立可翻译元素，同时又将其内容作为父容器的一部分再次扫描<br>2. `getTranslatableElements()` 可能没有正确过滤列表项的层级关系<br>3. 批量翻译时可能将同一文本节点重复入队<br>4. `isSeparatelyTranslated()` 检测逻辑可能对列表结构失效 |
-| **改动文件（预估）** | `src/utils/dom-utils.js`（扫描逻辑）, `src/content.js`（翻译队列管理） |
-| **调查步骤** | 1. 使用包含 bulletpoints 的测试页面（如用户截图中的学习材料）<br>2. 在 `getTranslatableElements()` 中添加 debug logging，查看哪些元素被扫描<br>3. 检查是否 `<li>` 和其父元素 `<ul>/<ol>` 都被加入翻译队列<br>4. 验证 `isSeparatelyTranslated()` 对嵌套列表的行为<br>5. 查看翻译结果的 DOM 插入位置是否正确 |
-| **临时解决方案** | 在 `getTranslatableElements()` 中明确跳过 `<li>` 元素，或者确保在扫描父容器时排除已被单独翻译的子列表项 |
-| **长期解决方案** | 1. 重构扫描逻辑，明确"可翻译元素"的层级优先级：<br>   - 优先翻译语义容器（`<p>`, `<h1-h6>`, `<li>`, `<td>` 等）<br>   - 跳过已被子元素覆盖的文本节点<br>2. 增强 `isSeparatelyTranslated()` 以检测"祖先或后代已被翻译"<br>3. 添加针对列表结构的集成测试用例 |
-| **测试计划** | - 创建包含 `<ul><li>` 和 `<ol><li>` 的测试页面<br>- 验证每个列表项只被翻译一次<br>- 验证嵌套列表（`<ul>` 内嵌 `<ul>`）不会重复翻译<br>- 验证翻译结果插入到正确的 DOM 位置<br>- 覆盖复杂列表（包含富文本、链接、多段落的 `<li>`） |
+| **问题** | 列表项（`<li>` 内的 bulletpoint 内容）被翻译了两次：<br>1. 正常翻译：在列表项内部正确位置（✅ 这部分工作正常）<br>2. 重复翻译：作为合并段落文本被插入到**页面底部或错误位置**<br>结果是页面上出现视觉重复，且第二次翻译破坏了布局结构 |
+| **优先级** | P0 - Critical（严重影响用户体验，翻译结果不可用） |
+| **测试URL** | **https://web.stanford.edu/class/cs234/** （Stanford CS234 课程页面）<br>该页面包含：<br>- "Learning Outcomes" 部分：5个 bulletpoints<br>- "Course Description & Logistics" 部分：混合段落+列表<br>- 复杂嵌套结构：`<li>` 内含多行文本和中文翻译 |
+| **重现步骤** | 1. 打开 https://web.stanford.edu/class/cs234/<br>2. 点击翻译按钮<br>3. 观察 "Learning Outcomes" 部分<br>4. 发现每个 bullet 下方有正确翻译，但页面底部出现大段重复合并文本 |
+| **截图观察** | **图1 (Learning Outcomes)**：<br>- 每个 `<li>` 内容被正确翻译并插入到 bullet 下方<br>- **但**：页面底部出现一大段合并的中文文本（所有bullet内容被拼接）<br><br>**图2 (Course Description)**：<br>- 段落翻译正常<br>- 列表项翻译正常<br>- **但**：页面底部同样出现重复的合并翻译文本 |
+| **可能原因（需调查）** | 1. **最可能**：DOM 扫描逻辑将 `<li>` 单独扫描后，又将 `<ul>/<ol>` 或其父容器作为整体再次扫描<br>2. `getTranslatableElements()` 没有过滤"已有可翻译子元素"的父容器<br>3. 翻译结果插入位置计算错误（应插入到原元素旁，却插入到容器末尾）<br>4. `isSeparatelyTranslated()` 未正确检测"子元素已翻译"的情况 |
+| **改动文件（预估）** | `src/utils/dom-utils.js`（扫描逻辑）, `src/content.js`（翻译队列管理、结果插入） |
+| **调查步骤** | 1. 在 CS234 页面打开 DevTools Console<br>2. 在 `getTranslatableElements()` 入口添加 `console.log` 输出所有扫描到的元素<br>3. 检查输出中是否同时包含 `<li>` 元素和其父 `<ul>` 元素<br>4. 在 `translateBatch()` 中 log 每个翻译结果的插入位置<br>5. 验证插入位置是否正确（应为原元素的 appendChild，而非页面末尾） |
+| **临时解决方案** | 在 `getTranslatableElements()` 中：<br>- 如果元素是 `<ul>/<ol>`，检查是否所有 `<li>` 子元素都会被单独翻译，若是则跳过父容器<br>- 或：明确只翻译叶子级语义容器（`<p>`, `<li>`, `<h1-6>` 等），不翻译 `<ul>/<ol>/<div>` 等纯容器 |
+| **长期解决方案** | 1. 重构扫描逻辑，建立"可翻译元素"的层级优先级：<br>   - 定义 LEAF_CONTAINERS = `['p', 'li', 'td', 'th', 'h1-h6', 'blockquote', 'figcaption']`<br>   - 优先扫描这些叶子容器<br>   - 父容器（`div`, `section`, `article`, `ul`, `ol`）仅在无可翻译子元素时才作为翻译单元<br>2. 增强 `isSeparatelyTranslated()` 以检测"祖先或后代已被翻译"<br>3. 验证翻译结果插入逻辑：必须是 `originalElement.appendChild(translationSpan)`，而非插入到其他位置 |
+| **测试计划** | - **E2E测试**：使用 CS234 页面作为真实测试用例<br>- 验证 "Learning Outcomes" 的5个 bulletpoints 各只翻译一次<br>- 验证页面底部不出现重复合并文本<br>- 验证嵌套列表（`<ul>` 内嵌 `<ul>`）不会重复翻译<br>- 验证翻译结果插入到正确的 DOM 位置（原元素内部）<br>- 单测：`getTranslatableElements()` 对 `<ul><li>` 结构只返回 `<li>` 元素 |
 
 ---
 

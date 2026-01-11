@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased] - 2026-01-11
 
 ### Known Issues
--   **Issue 29: Duplicate Translation in List Items**: Bulletpoint content is being translated twice - once normally within the list item, and once again as merged paragraph text inserted in the wrong location. This causes visual duplication and layout issues on pages with bulleted/numbered lists.
+-   **Issue 29: Duplicate Translation in List Items (P0)**: Bulletpoint content is being translated twice - once correctly within the list item, and once again as merged paragraph text inserted at page bottom. Test URL: https://web.stanford.edu/class/cs234/ - observe "Learning Outcomes" section where each bullet has correct translation but page bottom shows duplicate merged text.
 
 ### Planned
 -   **Issue 30: Update Extension Icon**: Replace current extension icons with new `imagen.png` file. Need to generate proper sizes (16x16, 48x48, 128x128) from the source image and update manifest references.
