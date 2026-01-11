@@ -4,14 +4,6 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased] - 2026-01-11
 
-### Known Issues
--   **Issue 32: PDF Viewer Hijacks Browser (P0)**: Extension intercepts all PDF URLs and redirects to a non-functional placeholder page (`chrome-extension://.../pdf_viewer.html`). The PDF viewer feature is incomplete - it shows "PDF Viewer Placeholder" instead of actual PDF content. This breaks the browser's native PDF viewing capability.
--   **Issue 29: Duplicate Translation in List Items (P0)**: Bulletpoint content is being translated twice - once correctly within the list item, and once again as merged paragraph text inserted at page bottom. Test URL: https://web.stanford.edu/class/cs234/ - observe "Learning Outcomes" section where each bullet has correct translation but page bottom shows duplicate merged text.
-
-### Planned
--   **Issue 30: Update Extension Icon**: Replace current extension icons with new `imagen.png` file. Need to generate proper sizes (16x16, 48x48, 128x128) from the source image and update manifest references.
--   **Issue 31: Smart Batch Size Configuration**: Increase default batch size from 5 to 10, add user-configurable batch size in Settings, and implement intelligent fallback based on model context/output limits.
-
 ### Security
 -   **Prompt Injection Protection (Issue 25)**: Web page content is now treated as untrusted input. Added `<translate_input>` boundary markers around user content and explicit SECURITY RULES in the system prompt instructing the LLM to ignore any embedded instructions/commands. User-configurable translation style prompts are now sanitized to remove template placeholders and boundary markers, with a 500-character length limit.
 

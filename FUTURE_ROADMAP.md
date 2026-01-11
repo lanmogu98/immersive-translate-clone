@@ -18,8 +18,11 @@ This is the **high-signal entrypoint** for near-term work.
 
 | ID | Priority | Item | Status | GH |
 | --- | --- | --- | --- | --- |
+| 32 | P0 | PDF viewer hijacks browser: redirects all `.pdf` URLs to non-functional placeholder page | 🔲 Pending | — |
+| 29 | P0 | Duplicate translation in list items: bulletpoints translated twice, merged text appears at page bottom | 🔲 Pending | — |
+| 31 | P1 | Smart batch size: increase default to 10, add Settings UI, implement context/output limit fallback | 🔲 Pending | — |
+| 30 | P2 | Update extension icon: generate sizes from `icons/imagen.png` | 🔲 Pending | — |
 | 13 | P3 | Translation caching | 🔲 Pending | — |
-| 28 | P3 | Configurable batch size: allow user to set paragraphs per request (default 5) | 🔲 Pending | — |
 
 ### Recently Done
 
