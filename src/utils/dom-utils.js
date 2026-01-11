@@ -42,6 +42,15 @@ class DOMUtils {
             // Issue 19: Skip interactive UI chrome (buttons/inputs/menus)
             if (this.isInteractiveElement(element)) continue;
 
+            // Issue 26: Skip style/script elements
+            if (this.isStyleOrScript(element)) continue;
+
+            // Issue 27: Skip math formula elements
+            if (this.isMathElement(element)) continue;
+
+            // Issue 27: Skip elements that are primarily math content (pure formula paragraphs)
+            if (this.isPrimarilyMathContent(element)) continue;
+
             // Issue 19: Skip navigation-ish areas by default (even if long)
             if (!translateNavigation && this.isInNavigationArea(element)) continue;
 
@@ -107,6 +116,58 @@ class DOMUtils {
         if (element.getAttribute && element.getAttribute('role') === 'button') return true;
         if (element.closest('[role="button"]')) return true;
         return false;
+    }
+
+    /**
+     * Issue 26: Check if element is or is inside a style/script tag
+     * These elements contain code, not translatable content
+     */
+    static isStyleOrScript(element) {
+        if (!element) return false;
+        // Check if the element itself is style/script
+        const tagName = element.tagName;
+        if (tagName === 'STYLE' || tagName === 'SCRIPT') return true;
+        // Check if inside style/script
+        if (element.closest && element.closest('style, script')) return true;
+        return false;
+    }
+
+    /**
+     * Issue 27: Check if element is or is inside a math formula container
+     * Supports: MathML (<math>), Wikipedia (.mwe-math-element), KaTeX (.katex), MathJax (.MathJax)
+     */
+    static isMathElement(element) {
+        if (!element) return false;
+        // Check if the element itself is a math element
+        if (element.tagName === 'MATH') return true;
+        // Check if inside any math container
+        if (element.closest && element.closest('math, .mwe-math-element, .katex, .MathJax, .MathJax_Display')) return true;
+        return false;
+    }
+
+    /**
+     * Issue 27: Check if element is primarily math content (after excluding math elements)
+     * Returns true if the remaining text has no meaningful content to translate
+     */
+    static isPrimarilyMathContent(element) {
+        if (!element) return false;
+
+        // Get all text content, but exclude math containers
+        const clone = element.cloneNode(true);
+
+        // Remove all math-related elements from clone
+        const mathSelectors = 'math, .mwe-math-element, .katex, .MathJax, .MathJax_Display, annotation, annotation-xml';
+        clone.querySelectorAll(mathSelectors).forEach(el => el.remove());
+
+        // Get remaining text
+        const remainingText = (clone.textContent || '').trim();
+
+        // If no meaningful text remains, it's primarily math
+        // Allow only: letters (any language), must have at least 2 consecutive word characters
+        // Skip if only math symbols, punctuation, single letters, numbers
+        const meaningfulTextPattern = /[a-zA-Z\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff]{2,}/;
+
+        return !meaningfulTextPattern.test(remainingText);
     }
 
     static isExcludedBySelector(element, selectors) {
@@ -196,7 +257,9 @@ class DOMUtils {
     /**
      * Extract all text nodes from an element (depth-first traversal)
      * Used for rich text preservation - translates text nodes while keeping markup
-     * 
+     *
+     * Issue 26/27: Skips text nodes inside style/script/math elements
+     *
      * @param {Element} element - The element to extract text nodes from
      * @returns {Text[]} Array of Text nodes in document order
      */
@@ -205,10 +268,39 @@ class DOMUtils {
         const walker = document.createTreeWalker(
             element,
             NodeFilter.SHOW_TEXT,
-            null,
-            false
+            {
+                acceptNode: (node) => {
+                    // Issue 26/27: Skip text inside style, script, math, annotation elements
+                    // Check if any ancestor should be excluded
+                    let parent = node.parentElement;
+                    while (parent && parent !== element) {
+                        const tag = parent.tagName.toUpperCase();
+                        // Skip style/script content
+                        if (tag === 'STYLE' || tag === 'SCRIPT') {
+                            return NodeFilter.FILTER_REJECT;
+                        }
+                        // Skip math elements (MathML) - note: MathML tags may be lowercase in some environments
+                        if (tag === 'MATH' || tag === 'ANNOTATION' || tag === 'ANNOTATION-XML') {
+                            return NodeFilter.FILTER_REJECT;
+                        }
+                        // Skip common math renderer containers
+                        if (parent.classList && (
+                            parent.classList.contains('mwe-math-element') ||
+                            parent.classList.contains('mwe-math-fallback-image-inline') ||
+                            parent.classList.contains('mwe-math-fallback-image-display') ||
+                            parent.classList.contains('katex') ||
+                            parent.classList.contains('MathJax') ||
+                            parent.classList.contains('MathJax_Display')
+                        )) {
+                            return NodeFilter.FILTER_REJECT;
+                        }
+                        parent = parent.parentElement;
+                    }
+                    return NodeFilter.FILTER_ACCEPT;
+                }
+            }
         );
-        
+
         let node;
         while ((node = walker.nextNode())) {
             // Clarified semantics (Issue 24):
@@ -218,7 +310,7 @@ class DOMUtils {
                 textNodes.push(node);
             }
         }
-        
+
         return textNodes;
     }
 

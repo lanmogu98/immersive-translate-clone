@@ -2,9 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased] - 2026-01-08
+## [Unreleased] - 2026-01-11
+
+### Known Issues
+-   **Issue 29: Duplicate Translation in List Items**: Bulletpoint content is being translated twice - once normally within the list item, and once again as merged paragraph text inserted in the wrong location. This causes visual duplication and layout issues on pages with bulleted/numbered lists.
+
+### Planned
+-   **Issue 30: Update Extension Icon**: Replace current extension icons with new `imagen.png` file. Need to generate proper sizes (16x16, 48x48, 128x128) from the source image and update manifest references.
+
+### Security
+-   **Prompt Injection Protection (Issue 25)**: Web page content is now treated as untrusted input. Added `<translate_input>` boundary markers around user content and explicit SECURITY RULES in the system prompt instructing the LLM to ignore any embedded instructions/commands. User-configurable translation style prompts are now sanitized to remove template placeholders and boundary markers, with a 500-character length limit.
 
 ### Fixed
+-   **Issue 26: CSS Leak**: Skip `<style>` and `<script>` elements during DOM scanning to prevent CSS selectors from leaking into translation output.
+-   **Issue 27: Math Formulas**: Skip math formula elements (`<math>`, `.mwe-math-element`, `.katex`, `.MathJax`) to prevent formulas from being incorrectly translated.
 -   **P0: Missing Method**: Added `DOMUtils.showError()` method that was being called but didn't exist, causing runtime errors on batch translation failures.
 -   **P0: Double Callback**: Fixed `onDone` callback being called twice in `llm-client.js` when errors occurred, preventing unpredictable behavior.
 -   **P0: Silent Failure**: Popup now shows user-friendly error when translation cannot run on browser internal pages (chrome://, about://, etc.). Also attempts to inject content script if not already loaded.

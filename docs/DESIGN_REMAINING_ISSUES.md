@@ -23,6 +23,41 @@
 
 ---
 
+## 🔴 新发现的 Bug（待修复）
+
+### Issue 29: 列表项内容重复翻译（Duplicate Translation in List Items）
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 列表项（`<li>` 内的 bulletpoint 内容）被翻译了两次：<br>1. 正常翻译：在列表项内部正确位置<br>2. 重复翻译：作为合并段落文本被插入到错误位置（不属于该列表项的地方）<br>结果是页面上出现视觉重复，且第二次翻译破坏了布局结构 |
+| **优先级** | P1 - High（影响翻译质量和用户体验） |
+| **重现场景** | 包含项目列表（`<ul>`/`<ol>`）的页面，尤其是教育内容、文档、学习材料等使用大量 bulletpoints 的页面 |
+| **可能原因（需调查）** | 1. DOM 扫描逻辑可能将 `<li>` 作为独立可翻译元素，同时又将其内容作为父容器的一部分再次扫描<br>2. `getTranslatableElements()` 可能没有正确过滤列表项的层级关系<br>3. 批量翻译时可能将同一文本节点重复入队<br>4. `isSeparatelyTranslated()` 检测逻辑可能对列表结构失效 |
+| **改动文件（预估）** | `src/utils/dom-utils.js`（扫描逻辑）, `src/content.js`（翻译队列管理） |
+| **调查步骤** | 1. 使用包含 bulletpoints 的测试页面（如用户截图中的学习材料）<br>2. 在 `getTranslatableElements()` 中添加 debug logging，查看哪些元素被扫描<br>3. 检查是否 `<li>` 和其父元素 `<ul>/<ol>` 都被加入翻译队列<br>4. 验证 `isSeparatelyTranslated()` 对嵌套列表的行为<br>5. 查看翻译结果的 DOM 插入位置是否正确 |
+| **临时解决方案** | 在 `getTranslatableElements()` 中明确跳过 `<li>` 元素，或者确保在扫描父容器时排除已被单独翻译的子列表项 |
+| **长期解决方案** | 1. 重构扫描逻辑，明确"可翻译元素"的层级优先级：<br>   - 优先翻译语义容器（`<p>`, `<h1-h6>`, `<li>`, `<td>` 等）<br>   - 跳过已被子元素覆盖的文本节点<br>2. 增强 `isSeparatelyTranslated()` 以检测"祖先或后代已被翻译"<br>3. 添加针对列表结构的集成测试用例 |
+| **测试计划** | - 创建包含 `<ul><li>` 和 `<ol><li>` 的测试页面<br>- 验证每个列表项只被翻译一次<br>- 验证嵌套列表（`<ul>` 内嵌 `<ul>`）不会重复翻译<br>- 验证翻译结果插入到正确的 DOM 位置<br>- 覆盖复杂列表（包含富文本、链接、多段落的 `<li>`） |
+
+---
+
+## 📝 待实现的需求（Planned Features）
+
+### Issue 30: 更新扩展图标（Update Extension Icon）
+
+| 项目 | 内容 |
+|------|------|
+| **需求** | 使用新的 `imagen.png` (642×642, 200KB) 替换当前的扩展图标 |
+| **优先级** | P2 - Medium（UI/品牌改进） |
+| **当前状态** | - 当前使用的图标：`icon16.png`, `icon48.png`, `icon128.png`（从旧的 `gpt4o_20250327.png` 生成）<br>- 新图标文件：`icons/imagen.png` (642×642) 已添加到仓库 |
+| **改动文件** | `manifest.json`, `icons/` 目录（生成新尺寸图标） |
+| **技术方案** | 1. 使用图像处理工具（ImageMagick/sips/在线工具）从 `imagen.png` 生成所需尺寸：<br>   - `icon16.png` (16×16)<br>   - `icon48.png` (48×48)<br>   - `icon128.png` (128×128)<br>2. 替换 `icons/` 目录中的现有文件<br>3. 验证 `manifest.json` 中的路径引用保持不变<br>4. 可选：保留 `imagen.png` 作为源文件，或重命名为 `icon-source.png` |
+| **实现步骤** | **方案 A - 使用 macOS sips 命令**（推荐，无需额外工具）：<br>```bash<br>sips -z 16 16 icons/imagen.png --out icons/icon16.png<br>sips -z 48 48 icons/imagen.png --out icons/icon48.png<br>sips -z 128 128 icons/imagen.png --out icons/icon128.png<br>```<br><br>**方案 B - 使用 ImageMagick**（需先安装 `brew install imagemagick`）：<br>```bash<br>convert icons/imagen.png -resize 16x16 icons/icon16.png<br>convert icons/imagen.png -resize 48x48 icons/icon48.png<br>convert icons/imagen.png -resize 128x128 icons/icon128.png<br>```<br><br>**方案 C - 在线工具**：<br>- 使用 https://www.iloveimg.com/resize-image 或类似服务 |
+| **测试计划** | - 验证生成的图标文件大小合理（16×16 应 < 2KB，48×48 应 < 5KB，128×128 应 < 20KB）<br>- 在 Chrome 中加载扩展，验证工具栏图标显示正确<br>- 在扩展管理页面（chrome://extensions/）验证大图标显示正确<br>- 验证图标在不同缩放比例下清晰度可接受 |
+| **备注** | - 源文件 `imagen.png` (200KB) 较大，建议优化压缩<br>- 考虑是否需要为不同尺寸手工优化（而非简单缩放）以获得更好的视觉效果 |
+
+---
+
 ## ✅ 近期已完成（用于收敛 Now 列表）
 
 - **Issue 16**: RichText V2（Token 协议）落地：保留 `<a href>` / 内联格式 / Wikipedia 脚注引用；允许 token 块重排以改善语序；失败安全回退

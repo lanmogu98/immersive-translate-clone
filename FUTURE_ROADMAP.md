@@ -18,8 +18,6 @@ This is the **high-signal entrypoint** for near-term work.
 
 | ID | Priority | Item | Status | GH |
 | --- | --- | --- | --- | --- |
-| 26 | P1 | Skip `<style>` tags: CSS selectors leaking into translation output | 🔲 Pending | — |
-| 27 | P1 | Skip math elements (`<math>`, `.mwe-math-element`): formulas should not be translated | 🔲 Pending | — |
 | 13 | P3 | Translation caching | 🔲 Pending | — |
 | 28 | P3 | Configurable batch size: allow user to set paragraphs per request (default 5) | 🔲 Pending | — |
 
@@ -27,6 +25,8 @@ This is the **high-signal entrypoint** for near-term work.
 
 | ID | Priority | Item | Status | GH |
 | --- | --- | --- | --- | --- |
+| 26 | P1 | Skip `<style>` tags: CSS selectors leaking into translation output | ✅ Done | — |
+| 27 | P1 | Skip math elements (`<math>`, `.mwe-math-element`): formulas should not be translated | ✅ Done | — |
 | 25 | P1 | Prompt injection 防护：将网页内容视为不可信输入（LLM security hardening） | ✅ Done | — |
 | 16 | P1 | Preserve rich text formatting in translated output | ✅ Done | — |
 | 19 | P1 | Replace brittle min-length heuristic to avoid missing short texts | ✅ Done | — |
