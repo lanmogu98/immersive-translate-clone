@@ -41,6 +41,23 @@
 
 ---
 
+## 📝 待实现的需求（Planned Features）
+
+### Issue 30: 更新扩展图标（Update Extension Icon）
+
+| 项目 | 内容 |
+|------|------|
+| **需求** | 使用新的 `imagen.png` (642×642, 200KB) 替换当前的扩展图标 |
+| **优先级** | P2 - Medium（UI/品牌改进） |
+| **当前状态** | - 当前使用的图标：`icon16.png`, `icon48.png`, `icon128.png`（从旧的 `gpt4o_20250327.png` 生成）<br>- 新图标文件：`icons/imagen.png` (642×642) 已添加到仓库 |
+| **改动文件** | `manifest.json`, `icons/` 目录（生成新尺寸图标） |
+| **技术方案** | 1. 使用图像处理工具（ImageMagick/sips/在线工具）从 `imagen.png` 生成所需尺寸：<br>   - `icon16.png` (16×16)<br>   - `icon48.png` (48×48)<br>   - `icon128.png` (128×128)<br>2. 替换 `icons/` 目录中的现有文件<br>3. 验证 `manifest.json` 中的路径引用保持不变<br>4. 可选：保留 `imagen.png` 作为源文件，或重命名为 `icon-source.png` |
+| **实现步骤** | **方案 A - 使用 macOS sips 命令**（推荐，无需额外工具）：<br>```bash<br>sips -z 16 16 icons/imagen.png --out icons/icon16.png<br>sips -z 48 48 icons/imagen.png --out icons/icon48.png<br>sips -z 128 128 icons/imagen.png --out icons/icon128.png<br>```<br><br>**方案 B - 使用 ImageMagick**（需先安装 `brew install imagemagick`）：<br>```bash<br>convert icons/imagen.png -resize 16x16 icons/icon16.png<br>convert icons/imagen.png -resize 48x48 icons/icon48.png<br>convert icons/imagen.png -resize 128x128 icons/icon128.png<br>```<br><br>**方案 C - 在线工具**：<br>- 使用 https://www.iloveimg.com/resize-image 或类似服务 |
+| **测试计划** | - 验证生成的图标文件大小合理（16×16 应 < 2KB，48×48 应 < 5KB，128×128 应 < 20KB）<br>- 在 Chrome 中加载扩展，验证工具栏图标显示正确<br>- 在扩展管理页面（chrome://extensions/）验证大图标显示正确<br>- 验证图标在不同缩放比例下清晰度可接受 |
+| **备注** | - 源文件 `imagen.png` (200KB) 较大，建议优化压缩<br>- 考虑是否需要为不同尺寸手工优化（而非简单缩放）以获得更好的视觉效果 |
+
+---
+
 ## ✅ 近期已完成（用于收敛 Now 列表）
 
 - **Issue 16**: RichText V2（Token 协议）落地：保留 `<a href>` / 内联格式 / Wikipedia 脚注引用；允许 token 块重排以改善语序；失败安全回退

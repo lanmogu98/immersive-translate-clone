@@ -422,6 +422,53 @@ describe('DOMUtils - Smart Filtering (shouldTranslate)', () => {
       const contentEl = elements.find(e => e.element.id === 'content');
       expect(contentEl).toBeDefined();
     });
+
+    test('should skip paragraph that is purely math formula', () => {
+      document.body.innerHTML = `
+        <p id="pure-math">
+          <span class="mwe-math-element">
+            <math><mi>π</mi><mo>:</mo><mi>S</mi><mo>×</mo><mi>A</mi><mo>→</mo><mo>[</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo>]</mo></math>
+          </span>
+        </p>
+        <p id="content">This paragraph has meaningful text to translate.</p>
+      `;
+      makeAllVisible('p, span');
+
+      const elements = DOMUtils.getTranslatableElements();
+      // Pure math paragraph should be skipped
+      const mathPara = elements.find(e => e.element.id === 'pure-math');
+      expect(mathPara).toBeUndefined();
+      // Normal content should be included
+      const contentEl = elements.find(e => e.element.id === 'content');
+      expect(contentEl).toBeDefined();
+    });
+
+    test('should skip paragraph with only math symbols remaining', () => {
+      document.body.innerHTML = `
+        <p id="math-only">
+          <span class="mwe-math-element"><math><mi>x</mi><mo>=</mo><mn>1</mn></math></span>
+          <span class="mwe-math-element"><math><mi>y</mi><mo>=</mo><mn>2</mn></math></span>
+        </p>
+        <p id="text">Regular paragraph content.</p>
+      `;
+      makeAllVisible('p, span');
+
+      const elements = DOMUtils.getTranslatableElements();
+      const mathOnly = elements.find(e => e.element.id === 'math-only');
+      expect(mathOnly).toBeUndefined();
+    });
+
+    test('should translate paragraph with math AND meaningful text', () => {
+      document.body.innerHTML = `
+        <p id="mixed">The formula <span class="mwe-math-element"><math><mi>E</mi><mo>=</mo><mi>m</mi><msup><mi>c</mi><mn>2</mn></msup></math></span> is famous in physics.</p>
+      `;
+      makeAllVisible('p, span');
+
+      const elements = DOMUtils.getTranslatableElements();
+      // This paragraph has meaningful text, so it should be included
+      const mixedEl = elements.find(e => e.element.id === 'mixed');
+      expect(mixedEl).toBeDefined();
+    });
   });
 
   describe('visibility checks', () => {
@@ -443,6 +490,159 @@ describe('DOMUtils - Smart Filtering (shouldTranslate)', () => {
       
       const elements = DOMUtils.getTranslatableElements();
       expect(elements.find(e => e.element === p)).toBeDefined();
+    });
+  });
+
+  describe('extractTextNodes - Issue 26/27: skip math/style text nodes', () => {
+    test('should skip text inside <annotation> elements (MathML LaTeX source)', () => {
+      document.body.innerHTML = `
+        <p id="para">One method is
+          <span class="mwe-math-element">
+            <math>
+              <semantics>
+                <mi>ε</mi>
+                <annotation encoding="application/x-tex">\\varepsilon</annotation>
+              </semantics>
+            </math>
+          </span>-greedy algorithm.
+        </p>
+      `;
+      const para = document.getElementById('para');
+      const textNodes = DOMUtils.extractTextNodes(para);
+      const allText = textNodes.map(n => n.textContent).join('');
+
+      // Should NOT contain LaTeX source code
+      expect(allText).not.toContain('\\varepsilon');
+      expect(allText).not.toContain('displaystyle');
+      // Should contain the visible text
+      expect(allText).toContain('One method is');
+      expect(allText).toContain('-greedy algorithm');
+    });
+
+    test('should skip text inside <math> elements', () => {
+      document.body.innerHTML = `
+        <p id="para">The value is <math><mi>x</mi><mo>=</mo><mn>1</mn></math> here.</p>
+      `;
+      const para = document.getElementById('para');
+      const textNodes = DOMUtils.extractTextNodes(para);
+      const allText = textNodes.map(n => n.textContent).join('');
+
+      // Should NOT contain math content
+      expect(allText).not.toContain('x');
+      expect(allText).not.toContain('=');
+      expect(allText).not.toContain('1');
+      // Should contain surrounding text
+      expect(allText).toContain('The value is');
+      expect(allText).toContain('here');
+    });
+
+    test('should skip text inside .mwe-math-element (Wikipedia)', () => {
+      document.body.innerHTML = `
+        <p id="para">Formula:
+          <span class="mwe-math-element">
+            <span class="mwe-math-mathml-inline">E = mc²</span>
+          </span> is famous.
+        </p>
+      `;
+      const para = document.getElementById('para');
+      const textNodes = DOMUtils.extractTextNodes(para);
+      const allText = textNodes.map(n => n.textContent).join('');
+
+      expect(allText).not.toContain('E = mc');
+      expect(allText).toContain('Formula');
+      expect(allText).toContain('is famous');
+    });
+
+    test('should skip text inside .katex elements', () => {
+      document.body.innerHTML = `
+        <p id="para">See <span class="katex"><span class="katex-mathml">\\sum_{i=1}^n</span></span> for sum.</p>
+      `;
+      const para = document.getElementById('para');
+      const textNodes = DOMUtils.extractTextNodes(para);
+      const allText = textNodes.map(n => n.textContent).join('');
+
+      expect(allText).not.toContain('sum_');
+      expect(allText).toContain('See');
+      expect(allText).toContain('for sum');
+    });
+
+    test('should skip text inside .MathJax elements', () => {
+      document.body.innerHTML = `
+        <p id="para">Value <span class="MathJax">x = 5</span> computed.</p>
+      `;
+      const para = document.getElementById('para');
+      const textNodes = DOMUtils.extractTextNodes(para);
+      const allText = textNodes.map(n => n.textContent).join('');
+
+      expect(allText).not.toContain('x = 5');
+      expect(allText).toContain('Value');
+      expect(allText).toContain('computed');
+    });
+
+    test('should skip text inside <style> elements', () => {
+      document.body.innerHTML = `
+        <div id="container">
+          <style>.test { color: red; }</style>
+          <p>Normal text here.</p>
+        </div>
+      `;
+      const container = document.getElementById('container');
+      const textNodes = DOMUtils.extractTextNodes(container);
+      const allText = textNodes.map(n => n.textContent).join('');
+
+      expect(allText).not.toContain('color');
+      expect(allText).not.toContain('.test');
+      expect(allText).toContain('Normal text here');
+    });
+
+    test('should skip text inside <script> elements', () => {
+      document.body.innerHTML = `
+        <div id="container">
+          <script>console.log("hello");</script>
+          <p>Visible content.</p>
+        </div>
+      `;
+      const container = document.getElementById('container');
+      const textNodes = DOMUtils.extractTextNodes(container);
+      const allText = textNodes.map(n => n.textContent).join('');
+
+      expect(allText).not.toContain('console');
+      expect(allText).not.toContain('hello');
+      expect(allText).toContain('Visible content');
+    });
+
+    test('should handle complex Wikipedia math paragraph', () => {
+      // Simulates real Wikipedia structure
+      document.body.innerHTML = `
+        <p id="para">One such method is
+          <span class="mwe-math-element">
+            <span class="mwe-math-mathml-inline mwe-math-mathml-a11y" style="display: none;">
+              <math><semantics><mrow><mi>ε</mi></mrow>
+                <annotation encoding="application/x-tex">{\\displaystyle \\varepsilon }</annotation>
+              </semantics></math>
+            </span>
+            <img src="epsilon.svg" class="mwe-math-fallback-image-inline" alt="\\varepsilon">
+          </span>-greedy, where
+          <span class="mwe-math-element">
+            <span class="mwe-math-mathml-inline">
+              <math><semantics><mrow><mn>0</mn><mo>&lt;</mo><mi>ε</mi><mo>&lt;</mo><mn>1</mn></mrow>
+                <annotation encoding="application/x-tex">{\\displaystyle 0&lt;\\varepsilon &lt;1}</annotation>
+              </semantics></math>
+            </span>
+          </span> is a parameter.
+        </p>
+      `;
+      const para = document.getElementById('para');
+      const textNodes = DOMUtils.extractTextNodes(para);
+      const allText = textNodes.map(n => n.textContent).join('');
+
+      // Should NOT contain any LaTeX
+      expect(allText).not.toContain('displaystyle');
+      expect(allText).not.toContain('\\varepsilon');
+      // Should contain the readable text
+      expect(allText).toContain('One such method is');
+      expect(allText).toContain('-greedy');
+      expect(allText).toContain('is a parameter');
     });
   });
 });
