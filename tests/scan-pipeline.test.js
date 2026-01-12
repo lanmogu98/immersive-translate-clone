@@ -155,6 +155,27 @@ describe('scan pipeline (Issue 19 + Issue 12)', () => {
       // Parent container should NOT be captured (would cause duplicate translation)
       expect(elements.find((e) => e.element.id === 'container')).toBeUndefined();
     });
+
+    test('should NOT scan h2 when it contains body-text child (prevent duplicate)', () => {
+      // Reproduces The Economist bug where h2 > body-text causes double translation
+      document.body.innerHTML = `
+        <main>
+          <h2 id="heading">
+            <body-text id="bt">Artificial intelligence promises to transform how and where things are made</body-text>
+          </h2>
+        </main>
+      `;
+      makeAllVisible('main, h2, body-text');
+
+      const elements = DOMUtils.getTranslatableElements({
+        excludedSelectors: [],
+      });
+
+      // body-text element should be captured
+      expect(elements.find((e) => e.element.id === 'bt')).toBeDefined();
+      // Parent h2 should NOT be captured (would cause duplicate translation)
+      expect(elements.find((e) => e.element.id === 'heading')).toBeUndefined();
+    });
   });
 
   describe('Issue 12: language detection gating (zh target)', () => {
