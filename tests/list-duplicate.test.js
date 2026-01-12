@@ -283,10 +283,10 @@ describe('Issue 29: Duplicate Translation in List Items', () => {
       expect(elementIds).not.toContain('empty-parent');
     });
 
-    test('mixed content div: direct text SHOULD be translated (Issue 29 regression)', () => {
-      // This tests the REGRESSION from Issue 29 fix
+    test('mixed content div: direct text SHOULD be translated via wrapper spans (Issue 29 fix)', () => {
+      // Updated test for Issue 29 fix using text wrapping approach
       // When a div has direct text AND translatable children,
-      // the direct text should NOT be swallowed
+      // the direct text is wrapped in spans and translated independently
       document.body.innerHTML = `
         <div id="mixed-div">
           Introduction text that should be translated
@@ -298,19 +298,20 @@ describe('Issue 29: Duplicate Translation in List Items', () => {
       makeAllVisible('div, ul, li');
 
       const elements = DOMUtils.getTranslatableElements();
-      const elementIds = elements.map(e => e.element.id);
+      const elementIds = elements.map(e => e.element.id || e.element.className);
 
       // The <li> should be translated
       expect(elementIds).toContain('item1');
 
-      // The parent div with direct text should ALSO be translated
-      // This is the key assertion for the regression fix
-      expect(elementIds).toContain('mixed-div');
+      // The parent div should NOT be in elements (it's skipped)
+      expect(elementIds).not.toContain('mixed-div');
 
-      // Verify the div's text includes the introduction
-      const mixedDiv = elements.find(e => e.element.id === 'mixed-div');
-      expect(mixedDiv).toBeDefined();
-      expect(mixedDiv.text).toContain('Introduction text');
+      // Instead, a wrapper span should contain the introduction text
+      const wrappers = elements.filter(e =>
+        e.element.className === 'immersive-translate-text-wrapper'
+      );
+      expect(wrappers.length).toBeGreaterThan(0);
+      expect(wrappers.some(w => w.text.includes('Introduction text'))).toBe(true);
     });
 
     test('pure container div (no direct text) should NOT be translated', () => {
@@ -334,14 +335,14 @@ describe('Issue 29: Duplicate Translation in List Items', () => {
       expect(elementIds).not.toContain('pure-container');
     });
 
-    test('getDirectTextContent should preserve spacing between text nodes', () => {
-      // When multiple direct text nodes exist (separated by inline elements),
-      // the extracted text should have proper spacing
+    test('wrapper spans should preserve text content (text wrapping replaces getDirectTextContent)', () => {
+      // With text wrapping, each text node becomes a separate wrapper span
+      // The spacing is naturally preserved since each text node is independent
       document.body.innerHTML = `
         <div id="spaced-div">
-          Hello
+          Hello World text here
           <span>ignored</span>
-          World
+          Another paragraph here
           <ul>
             <li id="item">List item with enough text here</li>
           </ul>
@@ -350,26 +351,254 @@ describe('Issue 29: Duplicate Translation in List Items', () => {
       makeAllVisible('div, span, ul, li');
 
       const elements = DOMUtils.getTranslatableElements();
-      const spacedDiv = elements.find(e => e.element.id === 'spaced-div');
 
-      expect(spacedDiv).toBeDefined();
-      // The text should have space between "Hello" and "World", not "HelloWorld"
-      expect(spacedDiv.text).toMatch(/Hello\s+World/);
+      // Should have wrapper spans for the text nodes
+      const wrappers = elements.filter(e =>
+        e.element.className === 'immersive-translate-text-wrapper'
+      );
+
+      // Each substantial text block should have its own wrapper
+      expect(wrappers.length).toBeGreaterThanOrEqual(1);
+      // Text content should be preserved in wrappers
+      expect(wrappers.some(w => w.text.includes('Hello World'))).toBe(true);
     });
 
-    test('getDirectTextContent should add space between adjacent text nodes (no whitespace in HTML)', () => {
-      // Edge case: text nodes directly adjacent with no whitespace in HTML
-      // e.g., <div>Hello<span>X</span>World</div>
-      // The direct text is "Hello" and "World" - should be "Hello World" not "HelloWorld"
-      document.body.innerHTML = `<div id="adjacent-div">First part<span>ignored</span>Second part<ul><li id="item">List item text here</li></ul></div>`;
+    test('adjacent text nodes become separate wrappers (text wrapping approach)', () => {
+      // With text wrapping, adjacent text nodes are wrapped individually
+      // Each gets its own span, solving the positioning problem
+      document.body.innerHTML = `<div id="adjacent-div">First part here<span>ignored</span>Second part here<ul><li id="item">List item text here</li></ul></div>`;
       makeAllVisible('div, span, ul, li');
 
       const elements = DOMUtils.getTranslatableElements();
-      const adjacentDiv = elements.find(e => e.element.id === 'adjacent-div');
 
-      expect(adjacentDiv).toBeDefined();
-      // Should have space between "First part" and "Second part"
-      expect(adjacentDiv.text).toBe('First part Second part');
+      // Should have wrapper spans
+      const wrappers = elements.filter(e =>
+        e.element.className === 'immersive-translate-text-wrapper'
+      );
+
+      // Should have separate wrappers for each text block
+      expect(wrappers.length).toBe(2);
+      expect(wrappers.some(w => w.text.includes('First part'))).toBe(true);
+      expect(wrappers.some(w => w.text.includes('Second part'))).toBe(true);
+    });
+  });
+
+  describe('wrapDirectTextNodes', () => {
+    test('should wrap substantial direct text nodes in spans', () => {
+      document.body.innerHTML = `
+        <div id="mixed">
+          First paragraph of text here
+          <ul><li id="item">List item</li></ul>
+          Second paragraph of text
+        </div>
+      `;
+      const div = document.getElementById('mixed');
+      const wrappers = DOMUtils.wrapDirectTextNodes(div);
+
+      // Should create 2 wrapper spans (one for each text block)
+      expect(wrappers.length).toBe(2);
+
+      // Each wrapper should have the correct class
+      wrappers.forEach(span => {
+        expect(span.className).toBe('immersive-translate-text-wrapper');
+      });
+
+      // Text content should be preserved
+      expect(wrappers[0].textContent).toContain('First paragraph');
+      expect(wrappers[1].textContent).toContain('Second paragraph');
+
+      // Wrappers should be in the DOM
+      expect(div.querySelectorAll('.immersive-translate-text-wrapper').length).toBe(2);
+    });
+
+    test('should NOT wrap short text nodes (below threshold)', () => {
+      document.body.innerHTML = `
+        <div id="mixed">
+          Hi
+          <ul><li>List item with enough text</li></ul>
+        </div>
+      `;
+      const div = document.getElementById('mixed');
+      const wrappers = DOMUtils.wrapDirectTextNodes(div);
+
+      // "Hi" is too short (< 3 chars), should not be wrapped
+      expect(wrappers.length).toBe(0);
+    });
+
+    test('should NOT wrap pure number text nodes', () => {
+      document.body.innerHTML = `
+        <div id="mixed">
+          12345
+          <ul><li>List item</li></ul>
+        </div>
+      `;
+      const div = document.getElementById('mixed');
+      const wrappers = DOMUtils.wrapDirectTextNodes(div);
+
+      expect(wrappers.length).toBe(0);
+    });
+
+    test('should preserve DOM structure after wrapping', () => {
+      document.body.innerHTML = `
+        <div id="mixed">
+          Text before
+          <p id="para">Paragraph</p>
+          Text after
+        </div>
+      `;
+      const div = document.getElementById('mixed');
+      DOMUtils.wrapDirectTextNodes(div);
+
+      // <p> should still exist and be in correct position
+      const para = document.getElementById('para');
+      expect(para).not.toBeNull();
+      expect(para.parentElement).toBe(div);
+    });
+  });
+
+  describe('mixed content container handling (text wrapping)', () => {
+    test('mixed container: direct text should be wrapped and returned separately', () => {
+      document.body.innerHTML = `
+        <div id="coursedesc">
+          To realize the dreams and impact of AI requires autonomous systems.
+          <ul>
+            <li id="li1">Lectures will be live every Monday</li>
+            <li id="li2">Office hours will be announced</li>
+          </ul>
+          Communication info goes here with enough text.
+        </div>
+      `;
+      makeAllVisible('div, ul, li');
+
+      const elements = DOMUtils.getTranslatableElements();
+      const ids = elements.map(e => e.element.id || e.element.className);
+
+      // Should include li elements
+      expect(ids).toContain('li1');
+      expect(ids).toContain('li2');
+
+      // Should NOT include the container div
+      expect(ids).not.toContain('coursedesc');
+
+      // Should include wrapped text spans
+      const wrapperElements = elements.filter(e =>
+        e.element.className === 'immersive-translate-text-wrapper'
+      );
+      expect(wrapperElements.length).toBe(2);
+
+      // Verify text content of wrappers
+      const wrapperTexts = wrapperElements.map(e => e.text);
+      expect(wrapperTexts.some(t => t.includes('dreams'))).toBe(true);
+      expect(wrapperTexts.some(t => t.includes('Communication'))).toBe(true);
+    });
+
+    test('wrapped spans should be positioned correctly in DOM', () => {
+      document.body.innerHTML = `
+        <div id="mixed">
+          First text block here
+          <p id="middle">Middle element</p>
+          Second text block here
+        </div>
+      `;
+      makeAllVisible('div, p');
+
+      DOMUtils.getTranslatableElements();
+
+      const div = document.getElementById('mixed');
+      const children = Array.from(div.children);
+
+      // Order should be: wrapper1, p, wrapper2
+      expect(children[0].className).toBe('immersive-translate-text-wrapper');
+      expect(children[1].id).toBe('middle');
+      expect(children[2].className).toBe('immersive-translate-text-wrapper');
+    });
+
+    test('CS234 page structure: no duplicate translations', () => {
+      document.body.innerHTML = `
+        <div id="coursedesc">
+          To realize the dreams and impact of AI requires autonomous systems that learn.
+          Reinforcement learning is one powerful paradigm for doing so.
+          <br><br>
+          <b>Communication:</b> We will use a forum for questions.
+          <br><br>
+          <ul>
+            <li id="lec">Lectures will be live every Monday and Wednesday 3-4:20pm.</li>
+            <li id="oh">Office hours: Will be announced in the first week of class</li>
+          </ul>
+        </div>
+      `;
+      makeAllVisible('div, ul, li, b, br');
+
+      const elements = DOMUtils.getTranslatableElements();
+
+      // Check for duplicates: "Lectures" text should appear in exactly ONE element
+      const lecturesCount = elements.filter(e =>
+        e.text.includes('Lectures will be live')
+      ).length;
+      expect(lecturesCount).toBe(1);
+
+      // The element containing "Lectures" should be the <li>, not a wrapper
+      const lecturesElement = elements.find(e => e.text.includes('Lectures will be live'));
+      expect(lecturesElement.element.id).toBe('lec');
+    });
+
+    test('each text segment should have its own translation position', () => {
+      document.body.innerHTML = `
+        <div id="mixed">
+          Introduction text here
+          <ul><li id="item">List item</li></ul>
+          Conclusion text here
+        </div>
+      `;
+      makeAllVisible('div, ul, li');
+
+      const elements = DOMUtils.getTranslatableElements();
+
+      // Find the wrapper spans
+      const wrappers = elements.filter(e =>
+        e.element.className === 'immersive-translate-text-wrapper'
+      );
+
+      // Each wrapper should be a direct child of #mixed
+      wrappers.forEach(w => {
+        expect(w.element.parentElement.id).toBe('mixed');
+      });
+    });
+
+    test('container with ONLY whitespace text nodes should not create wrappers', () => {
+      document.body.innerHTML = `
+        <div id="container">
+          <p id="p1">Paragraph one</p>
+          <p id="p2">Paragraph two</p>
+        </div>
+      `;
+      makeAllVisible('div, p');
+
+      const elements = DOMUtils.getTranslatableElements();
+
+      // Should not have any wrappers (only whitespace between p tags)
+      const wrappers = elements.filter(e =>
+        e.element.className === 'immersive-translate-text-wrapper'
+      );
+      expect(wrappers.length).toBe(0);
+    });
+
+    test('already wrapped elements should not be re-wrapped', () => {
+      document.body.innerHTML = `
+        <div id="mixed">
+          Some text here enough to wrap
+          <ul><li>Item text here</li></ul>
+        </div>
+      `;
+      makeAllVisible('div, ul, li');
+
+      // Call twice
+      DOMUtils.getTranslatableElements();
+      DOMUtils.getTranslatableElements();
+
+      // Should still only have 1 wrapper
+      const wrappers = document.querySelectorAll('.immersive-translate-text-wrapper');
+      expect(wrappers.length).toBe(1);
     });
   });
 });

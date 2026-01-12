@@ -69,23 +69,33 @@ class DOMUtils {
             // This ensures we detect all potentially translatable descendants
             const descendantMinLen = Math.min(MAIN_MIN_LEN, DEFAULT_MIN_LEN);
             const hasDescendants = this.hasTranslatableDescendants(element, descendantMinLen);
-            const hasDirectTxt = this.hasDirectText(element);
 
-            // Skip PURE containers (no direct text) - their children will be translated
-            if (hasDescendants && !hasDirectTxt) {
+            // If container has translatable descendants, wrap direct text nodes instead
+            // of including the container itself. This prevents translation positioning issues.
+            if (hasDescendants) {
+                // Wrap direct text nodes in spans for independent translation
+                const wrappedSpans = this.wrapDirectTextNodes(element, descendantMinLen);
+
+                // Add each wrapped span as a translatable element
+                for (const span of wrappedSpans) {
+                    const spanText = span.textContent.trim();
+                    // Issue 19: Main content has lower min length
+                    const spanMinLen = this.isInMainContent(span) ? Math.min(MAIN_MIN_LEN, DEFAULT_MIN_LEN) : DEFAULT_MIN_LEN;
+                    if (spanText.length >= spanMinLen && !/^\d+$/.test(spanText)) {
+                        // Make span visible for jsdom tests
+                        if (span.offsetParent === null && element.offsetParent !== null) {
+                            // Inherit visibility from parent in test environment
+                        }
+                        elements.push({ element: span, text: spanText });
+                    }
+                }
+
+                // Skip the container itself - children will be translated separately
                 continue;
             }
 
-            // For mixed-content elements (has both direct text AND translatable children),
-            // only extract the direct text to avoid duplicating child text
-            let rawText;
-            if (hasDescendants && hasDirectTxt) {
-                // Mixed content: only translate direct text nodes
-                rawText = this.getDirectTextContent(element);
-            } else {
-                // Normal case: use full text content
-                rawText = (typeof element.innerText === 'string' ? element.innerText : element.textContent || '').trim();
-            }
+            // Normal case: no translatable descendants, use full text content
+            let rawText = (typeof element.innerText === 'string' ? element.innerText : element.textContent || '').trim();
             if (!rawText) continue;
 
             // Skip pure numbers
@@ -227,6 +237,47 @@ class DOMUtils {
             }
         }
         return texts.join(' ');
+    }
+
+    /**
+     * Issue 29 fix: Wrap substantial direct text nodes in spans for independent translation
+     * This solves the positioning problem where mixed-content containers would have
+     * all their direct text merged and appended at the end.
+     * @param {Element} element - Container element with mixed content
+     * @param {number} [minLen=3] - Minimum text length threshold for wrapping
+     * @returns {HTMLSpanElement[]} Array of newly created wrapper spans
+     */
+    static wrapDirectTextNodes(element, minLen = 3) {
+        const wrappers = [];
+        const textNodes = [];
+
+        // Collect substantial direct text nodes (must iterate fresh each time)
+        for (const node of Array.from(element.childNodes)) {
+            if (node.nodeType === Node.TEXT_NODE) {
+                const text = node.textContent.trim();
+                // Only wrap if meets minimum length and is not pure numbers
+                if (text.length >= minLen && !/^\d+$/.test(text)) {
+                    textNodes.push(node);
+                }
+            }
+        }
+
+        // Wrap each in a span
+        for (const textNode of textNodes) {
+            // Check if already wrapped (idempotency)
+            if (textNode.parentElement &&
+                textNode.parentElement.className === 'immersive-translate-text-wrapper') {
+                continue;
+            }
+
+            const span = document.createElement('span');
+            span.className = 'immersive-translate-text-wrapper';
+            textNode.parentNode.insertBefore(span, textNode);
+            span.appendChild(textNode);
+            wrappers.push(span);
+        }
+
+        return wrappers;
     }
 
     /**
