@@ -62,30 +62,49 @@ function estimateTokens(text) {
 }
 
 /**
- * Get the token ratio for a target language.
+ * Get the token ratio for a source-target language pair.
  * This ratio estimates how the output length compares to input length.
  *
  * @param {string} targetLanguage - Target language code (e.g., 'zh-CN', 'ja', 'en')
+ * @param {string} [sourceLanguage] - Source language code (optional, for accuracy)
  * @returns {number} Token ratio multiplier
  */
-function getTokenRatio(targetLanguage) {
+function getTokenRatio(targetLanguage, sourceLanguage) {
     if (!targetLanguage) {
         return TOKEN_RATIOS.default;
     }
 
-    const lang = targetLanguage.toLowerCase();
+    const target = targetLanguage.toLowerCase();
+    const source = (sourceLanguage || '').toLowerCase();
 
-    if (lang.startsWith('zh')) {
-        return TOKEN_RATIOS.en_to_zh;
-    }
-    if (lang === 'ja' || lang.startsWith('ja-')) {
-        return TOKEN_RATIOS.en_to_ja;
-    }
-    if (lang === 'ko' || lang.startsWith('ko-')) {
-        return TOKEN_RATIOS.en_to_ko;
-    }
-    if (lang === 'en' || lang.startsWith('en-')) {
+    // If source language is explicitly provided, use it for more accurate ratio
+    const isSourceEnglish = source === 'en' || source.startsWith('en-') || source === 'other';
+    const isSourceCJK = source.startsWith('zh') || source.startsWith('ja') || source.startsWith('ko');
+
+    // CJK source to English target
+    if (isSourceCJK && (target === 'en' || target.startsWith('en-'))) {
         return TOKEN_RATIOS.zh_to_en;
+    }
+
+    // If source is known to be English (or unknown/other), use target-based ratios
+    if (isSourceEnglish || !source) {
+        if (target.startsWith('zh')) {
+            return TOKEN_RATIOS.en_to_zh;
+        }
+        if (target === 'ja' || target.startsWith('ja-')) {
+            return TOKEN_RATIOS.en_to_ja;
+        }
+        if (target === 'ko' || target.startsWith('ko-')) {
+            return TOKEN_RATIOS.en_to_ko;
+        }
+        if (target === 'en' || target.startsWith('en-')) {
+            return TOKEN_RATIOS.zh_to_en;
+        }
+    }
+
+    // Unknown source language to known target: use default for safety
+    if (source && !isSourceEnglish && !isSourceCJK) {
+        return TOKEN_RATIOS.default;
     }
 
     return TOKEN_RATIOS.default;
@@ -139,17 +158,41 @@ function calculateSafeBatchSize(options) {
         systemPromptTokens = 0
     } = options;
 
-    const effectiveUserSize = userBatchSize || DEFAULT_BATCH_SIZE;
+    // Issue 3: Input validation for userBatchSize
+    const isValidUserBatchSize = typeof userBatchSize === 'number' &&
+                                  userBatchSize > 0 &&
+                                  Number.isFinite(userBatchSize);
+    const effectiveUserSize = isValidUserBatchSize ? Math.floor(userBatchSize) : DEFAULT_BATCH_SIZE;
 
-    // If no paragraphs, return user's preference
-    if (!paragraphs || paragraphs.length === 0) {
+    // Issue 5: Validate paragraphs is an array
+    if (!Array.isArray(paragraphs)) {
         return effectiveUserSize;
     }
 
-    // Calculate limits
+    // If no paragraphs, return user's preference
+    if (paragraphs.length === 0) {
+        return effectiveUserSize;
+    }
+
+    // Issue 5: Filter valid paragraphs first to check if any exist
+    const validParagraphs = paragraphs.filter(p => p != null && typeof p === 'string');
+    if (validParagraphs.length === 0) {
+        return effectiveUserSize;
+    }
+
+    // Issue 3: Input validation for contextWindow and maxOutputTokens
+    const isValidContextWindow = typeof contextWindow === 'number' &&
+                                  contextWindow > 0 &&
+                                  Number.isFinite(contextWindow);
+    const isValidMaxOutput = typeof maxOutputTokens === 'number' &&
+                              maxOutputTokens > 0 &&
+                              Number.isFinite(maxOutputTokens);
+
+    // Calculate limits with validated values
     // Rule: Input should not exceed 2/3 of context window (leave room for output)
-    const maxInputTokens = Math.floor((contextWindow || 128000) * 2 / 3);
-    const effectiveMaxOutput = maxOutputTokens || 16000;
+    const safeContextWindow = isValidContextWindow ? contextWindow : 128000;
+    const safeMaxOutput = isValidMaxOutput ? maxOutputTokens : 16000;
+    const maxInputTokens = Math.floor(safeContextWindow * 2 / 3);
 
     // Get token ratio for output estimation
     const tokenRatio = getTokenRatio(targetLanguage);
@@ -159,8 +202,10 @@ function calculateSafeBatchSize(options) {
 
     // Try each batch size in sequence
     for (const size of sequence) {
-        // Take first 'size' paragraphs
-        const batchParagraphs = paragraphs.slice(0, size);
+        // Issue 5: Filter null/undefined/non-strings from paragraphs before joining
+        const batchParagraphs = paragraphs
+            .slice(0, size)
+            .filter(p => p != null && typeof p === 'string');
 
         if (batchParagraphs.length === 0) {
             continue;
@@ -176,7 +221,7 @@ function calculateSafeBatchSize(options) {
         const estimatedOutput = Math.ceil(inputTokens * tokenRatio);
 
         // Check if within limits
-        if (inputTokens <= maxInputTokens && estimatedOutput <= effectiveMaxOutput) {
+        if (inputTokens <= maxInputTokens && estimatedOutput <= safeMaxOutput) {
             return size;
         }
     }

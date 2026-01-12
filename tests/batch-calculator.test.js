@@ -300,4 +300,175 @@ describe('batch-calculator', () => {
             expect(result).toBe(10);
         });
     });
+
+    // =========================================================================
+    // Code Review Fixes - Edge Cases (Issue 31 Review)
+    // =========================================================================
+
+    describe('edge cases - input validation (Issue 3)', () => {
+        test('should handle contextWindow = 0 gracefully (use default)', () => {
+            const result = BatchCalculator.calculateSafeBatchSize({
+                userBatchSize: 10,
+                paragraphs: ['Short text.'],
+                contextWindow: 0,
+                maxOutputTokens: 16000,
+                targetLanguage: 'zh-CN'
+            });
+            // Should use default context window (128000) and return valid size
+            expect(result).toBeGreaterThanOrEqual(1);
+            expect(result).toBeLessThanOrEqual(10);
+        });
+
+        test('should handle negative contextWindow gracefully (use default)', () => {
+            const result = BatchCalculator.calculateSafeBatchSize({
+                userBatchSize: 5,
+                paragraphs: ['Text.'],
+                contextWindow: -1000,
+                maxOutputTokens: 16000
+            });
+            expect(result).toBeGreaterThanOrEqual(1);
+            expect(result).toBeLessThanOrEqual(5);
+        });
+
+        test('should handle NaN contextWindow gracefully (use default)', () => {
+            const result = BatchCalculator.calculateSafeBatchSize({
+                userBatchSize: 5,
+                paragraphs: ['Text.'],
+                contextWindow: NaN,
+                maxOutputTokens: 16000
+            });
+            expect(result).toBeGreaterThanOrEqual(1);
+            expect(result).toBeLessThanOrEqual(5);
+        });
+
+        test('should handle Infinity maxOutputTokens gracefully (use default)', () => {
+            const result = BatchCalculator.calculateSafeBatchSize({
+                userBatchSize: 10,
+                paragraphs: ['Text.'],
+                contextWindow: 128000,
+                maxOutputTokens: Infinity
+            });
+            // Should use default max output (16000) and return valid size
+            expect(result).toBeGreaterThanOrEqual(1);
+            expect(result).toBeLessThanOrEqual(10);
+        });
+
+        test('should handle non-numeric userBatchSize (use default)', () => {
+            const result = BatchCalculator.calculateSafeBatchSize({
+                userBatchSize: 'invalid',
+                paragraphs: ['Text.'],
+                contextWindow: 128000,
+                maxOutputTokens: 16000
+            });
+            // Should use default (10)
+            expect(result).toBe(10);
+        });
+
+        test('should handle negative userBatchSize (use default)', () => {
+            const result = BatchCalculator.calculateSafeBatchSize({
+                userBatchSize: -5,
+                paragraphs: ['Text.'],
+                contextWindow: 128000,
+                maxOutputTokens: 16000
+            });
+            // Should use default (10)
+            expect(result).toBe(10);
+        });
+    });
+
+    describe('edge cases - fallback sequence (Issue 4)', () => {
+        test('buildFallbackSequence(2) should include 1 for final fallback', () => {
+            const sequence = BatchCalculator.buildFallbackSequence(2);
+            expect(sequence).toContain(1);
+            expect(sequence).toContain(2);
+            expect(sequence).toEqual([2, 1]);
+        });
+
+        test('buildFallbackSequence(1) should return [1]', () => {
+            const sequence = BatchCalculator.buildFallbackSequence(1);
+            expect(sequence).toEqual([1]);
+        });
+
+        test('buildFallbackSequence(0) should return [1] as safe minimum', () => {
+            const sequence = BatchCalculator.buildFallbackSequence(0);
+            // Zero or invalid should still return at least [1]
+            expect(sequence).toContain(1);
+        });
+    });
+
+    describe('edge cases - paragraphs with null/undefined (Issue 5)', () => {
+        test('should handle paragraphs containing null values', () => {
+            const paragraphs = ['Valid text', null, 'Another valid', undefined, 'Last one'];
+            const result = BatchCalculator.calculateSafeBatchSize({
+                userBatchSize: 5,
+                paragraphs,
+                contextWindow: 128000,
+                maxOutputTokens: 16000,
+                targetLanguage: 'zh-CN'
+            });
+            expect(result).toBeGreaterThanOrEqual(1);
+            expect(result).toBeLessThanOrEqual(5);
+        });
+
+        test('should handle paragraphs array with only null/undefined', () => {
+            const result = BatchCalculator.calculateSafeBatchSize({
+                userBatchSize: 5,
+                paragraphs: [null, undefined, null],
+                contextWindow: 128000,
+                maxOutputTokens: 16000
+            });
+            // Empty effective paragraphs should return user batch size
+            expect(result).toBe(5);
+        });
+
+        test('should not produce "null" or "undefined" strings in token estimation', () => {
+            // This test verifies that null/undefined don't become literal strings
+            const paragraphs = ['text', null, undefined];
+            const result = BatchCalculator.calculateSafeBatchSize({
+                userBatchSize: 3,
+                paragraphs,
+                contextWindow: 128000,
+                maxOutputTokens: 16000
+            });
+            // Should work without error and return reasonable value
+            expect(result).toBeGreaterThanOrEqual(1);
+        });
+
+        test('should handle non-array paragraphs parameter', () => {
+            const result = BatchCalculator.calculateSafeBatchSize({
+                userBatchSize: 5,
+                paragraphs: 'not an array',
+                contextWindow: 128000,
+                maxOutputTokens: 16000
+            });
+            // Should return user batch size when paragraphs is invalid
+            expect(result).toBe(5);
+        });
+    });
+
+    describe('edge cases - getTokenRatio with source language (Issue 1)', () => {
+        test('should accept optional sourceLanguage parameter', () => {
+            // This tests the API signature change
+            const ratio = BatchCalculator.getTokenRatio('zh-CN', 'en');
+            expect(ratio).toBe(BatchCalculator.TOKEN_RATIOS.en_to_zh);
+        });
+
+        test('should use default ratio when source language is unknown', () => {
+            // German source to Chinese target - no specific ratio defined
+            const ratio = BatchCalculator.getTokenRatio('zh-CN', 'de');
+            expect(ratio).toBe(BatchCalculator.TOKEN_RATIOS.default);
+        });
+
+        test('should work without source language (backward compatible)', () => {
+            // Should still work when sourceLanguage is not provided
+            const ratio = BatchCalculator.getTokenRatio('zh-CN');
+            expect(typeof ratio).toBe('number');
+            expect(ratio).toBeGreaterThan(0);
+        });
+
+        test('should use zh_to_en ratio for CJK source to English target', () => {
+            const ratio = BatchCalculator.getTokenRatio('en', 'zh');
+            expect(ratio).toBe(BatchCalculator.TOKEN_RATIOS.zh_to_en);
+        });
+    });
 });

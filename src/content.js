@@ -6,6 +6,7 @@ let isScanning = false;
 let isTranslating = false;
 let translationQueue = [];
 let activeWorkers = 0;
+let workerStartLock = false; // Issue 2: Mutex to prevent race condition in worker startup
 
 // Configuration constants
 // MAX_CONCURRENT_WORKERS = 1: Single worker ensures DOM stability and avoids API rate limits
@@ -18,10 +19,20 @@ const DEFAULT_BATCH_SIZE = 10;
 // Worker function: continuously pulls from queue until empty
 // batchConfig (Issue 31) contains: userBatchSize, contextWindow, maxOutputTokens, targetLanguage, systemPromptTokens
 async function translationWorker(llmClient, batchConfig = {}) {
-    if (activeWorkers >= MAX_CONCURRENT_WORKERS) return;
-    activeWorkers++;
-    isTranslating = true;
+    // Issue 2: Use synchronous lock to prevent race condition
+    if (workerStartLock) return;
+    workerStartLock = true;
 
+    try {
+        if (activeWorkers >= MAX_CONCURRENT_WORKERS) {
+            return;
+        }
+        activeWorkers++;
+    } finally {
+        workerStartLock = false;
+    }
+
+    isTranslating = true;
     console.log('Worker started. Active:', activeWorkers);
 
     // Extract batch config or use defaults
@@ -38,7 +49,16 @@ async function translationWorker(llmClient, batchConfig = {}) {
         let safeBatchSize = userBatchSize;
         if (typeof globalThis !== 'undefined' && globalThis.BatchCalculator) {
             // Peek at queue to estimate batch content
-            const peekParagraphs = translationQueue.slice(0, userBatchSize).map(ctx => ctx.text || '');
+            // Issue 6: Add overhead for RichText V2 items (marker + inline tokens)
+            const RICHTEXT_V2_OVERHEAD = 50; // Approximate chars for [[ITC_RICH_V2]] + ~5 tokens
+            const peekParagraphs = translationQueue.slice(0, userBatchSize).map(ctx => {
+                const baseText = ctx.text || '';
+                // Add overhead for RichText V2 mode to improve estimation accuracy
+                if (ctx && ctx.richText === 'v2') {
+                    return baseText + ' '.repeat(RICHTEXT_V2_OVERHEAD);
+                }
+                return baseText;
+            });
             safeBatchSize = globalThis.BatchCalculator.calculateSafeBatchSize({
                 userBatchSize,
                 paragraphs: peekParagraphs,
