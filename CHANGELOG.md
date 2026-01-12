@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased] - 2026-01-11
 
+### Changed
+-   **Issue 30: Update Extension Icon**: Regenerated extension icons (16x16, 48x48, 128x128) from new source image `icons/imagen.png` using sharp. Added `scripts/generate-icons.js` for reproducible icon generation.
+
+### Fixed
+-   **Issue 29 Complete Fix: Translation Positioning via Text Wrapping**: Solved the persistent issue where translations of mixed-content containers appeared at the wrong position (appended to end instead of inline with source text). New approach: (1) When a container has translatable descendants (li, p, etc.), direct text nodes are wrapped in `<span class="immersive-translate-text-wrapper">` elements; (2) Each wrapper is translated independently, positioning the translation correctly after its source text; (3) Child elements (li, p) continue to be translated separately. Added `wrapDirectTextNodes()` method.
+-   **Code Review Fixes (Issue 29)**: (1) Fixed `getDirectTextContent()` to properly join text nodes with spaces - prevents adjacent text nodes from being concatenated without spacing (e.g., `HelloWorld` → `Hello World`). (2) Fixed threshold inconsistency in `hasTranslatableDescendants()` - now accepts `minLen` parameter for consistent behavior with `getTranslatableElements()`.
+-   **Issue 32: PDF Viewer Hijacks Browser**: Disabled incomplete PDF redirect logic that was intercepting all `.pdf` URLs and redirecting to a non-functional placeholder page. Browser's native PDF viewing is now restored. The PDF viewer feature will be re-enabled when PDF.js integration is complete.
+
 ### Security
 -   **Prompt Injection Protection (Issue 25)**: Web page content is now treated as untrusted input. Added `<translate_input>` boundary markers around user content and explicit SECURITY RULES in the system prompt instructing the LLM to ignore any embedded instructions/commands. User-configurable translation style prompts are now sanitized to remove template placeholders and boundary markers, with a 500-character length limit.
 

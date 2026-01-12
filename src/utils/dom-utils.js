@@ -64,7 +64,38 @@ class DOMUtils {
                 continue;
             }
 
-            const rawText = (typeof element.innerText === 'string' ? element.innerText : element.textContent || '').trim();
+            // Issue 29: Handle containers with translatable descendants
+            // Use MAIN_MIN_LEN as threshold since descendants could be in main content
+            // This ensures we detect all potentially translatable descendants
+            const descendantMinLen = Math.min(MAIN_MIN_LEN, DEFAULT_MIN_LEN);
+            const hasDescendants = this.hasTranslatableDescendants(element, descendantMinLen);
+
+            // If container has translatable descendants, wrap direct text nodes instead
+            // of including the container itself. This prevents translation positioning issues.
+            if (hasDescendants) {
+                // Wrap direct text nodes in spans for independent translation
+                const wrappedSpans = this.wrapDirectTextNodes(element, descendantMinLen);
+
+                // Add each wrapped span as a translatable element
+                for (const span of wrappedSpans) {
+                    const spanText = span.textContent.trim();
+                    // Issue 19: Main content has lower min length
+                    const spanMinLen = this.isInMainContent(span) ? Math.min(MAIN_MIN_LEN, DEFAULT_MIN_LEN) : DEFAULT_MIN_LEN;
+                    if (spanText.length >= spanMinLen && !/^\d+$/.test(spanText)) {
+                        // Make span visible for jsdom tests
+                        if (span.offsetParent === null && element.offsetParent !== null) {
+                            // Inherit visibility from parent in test environment
+                        }
+                        elements.push({ element: span, text: spanText });
+                    }
+                }
+
+                // Skip the container itself - children will be translated separately
+                continue;
+            }
+
+            // Normal case: no translatable descendants, use full text content
+            let rawText = (typeof element.innerText === 'string' ? element.innerText : element.textContent || '').trim();
             if (!rawText) continue;
 
             // Skip pure numbers
@@ -188,6 +219,93 @@ class DOMUtils {
                 return true;
             }
         }
+        return false;
+    }
+
+    /**
+     * Get only the direct text content of an element (excluding text from child elements)
+     * Used for mixed-content containers where we want to translate only the direct text
+     * @param {Element} element
+     * @returns {string} Concatenated direct text nodes with proper spacing, trimmed
+     */
+    static getDirectTextContent(element) {
+        const texts = [];
+        for (let node of element.childNodes) {
+            if (node.nodeType === Node.TEXT_NODE) {
+                const t = node.textContent.trim();
+                if (t) texts.push(t);
+            }
+        }
+        return texts.join(' ');
+    }
+
+    /**
+     * Issue 29 fix: Wrap substantial direct text nodes in spans for independent translation
+     * This solves the positioning problem where mixed-content containers would have
+     * all their direct text merged and appended at the end.
+     * @param {Element} element - Container element with mixed content
+     * @param {number} [minLen=3] - Minimum text length threshold for wrapping
+     * @returns {HTMLSpanElement[]} Array of newly created wrapper spans
+     */
+    static wrapDirectTextNodes(element, minLen = 3) {
+        const wrappers = [];
+        const textNodes = [];
+
+        // Collect substantial direct text nodes (must iterate fresh each time)
+        for (const node of Array.from(element.childNodes)) {
+            if (node.nodeType === Node.TEXT_NODE) {
+                const text = node.textContent.trim();
+                // Only wrap if meets minimum length and is not pure numbers
+                if (text.length >= minLen && !/^\d+$/.test(text)) {
+                    textNodes.push(node);
+                }
+            }
+        }
+
+        // Wrap each in a span
+        for (const textNode of textNodes) {
+            // Check if already wrapped (idempotency)
+            if (textNode.parentElement &&
+                textNode.parentElement.className === 'immersive-translate-text-wrapper') {
+                continue;
+            }
+
+            const span = document.createElement('span');
+            span.className = 'immersive-translate-text-wrapper';
+            textNode.parentNode.insertBefore(span, textNode);
+            span.appendChild(textNode);
+            wrappers.push(span);
+        }
+
+        return wrappers;
+    }
+
+    /**
+     * Issue 29: Check if element contains translatable descendant elements
+     * Returns true if the element has child elements that would be selected for translation
+     * This prevents parent containers from being translated when their children will be
+     * @param {Element} element - The element to check
+     * @param {number} [minLen=8] - Minimum text length threshold (should match getTranslatableElements)
+     */
+    static hasTranslatableDescendants(element, minLen = 8) {
+        if (!element) return false;
+
+        // Leaf-level containers that are typically translated individually
+        // These are the "semantic" text containers that should be translated as units
+        const LEAF_CONTAINERS = ['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI', 'BLOCKQUOTE', 'FIGCAPTION', 'DT', 'DD'];
+
+        // Check if element contains any leaf containers with significant text
+        for (const tag of LEAF_CONTAINERS) {
+            const descendants = element.querySelectorAll(tag);
+            for (const desc of descendants) {
+                // Check if descendant has meaningful text content
+                const text = (desc.textContent || '').trim();
+                if (text.length >= minLen && !/^\d+$/.test(text)) {
+                    return true;
+                }
+            }
+        }
+
         return false;
     }
 
