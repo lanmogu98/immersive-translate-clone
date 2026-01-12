@@ -11,22 +11,50 @@ let activeWorkers = 0;
 // MAX_CONCURRENT_WORKERS = 1: Single worker ensures DOM stability and avoids API rate limits
 // when using batched requests. Increase only if API supports high concurrency.
 const MAX_CONCURRENT_WORKERS = 1;
-// BATCH_SIZE = 5: Groups paragraphs for better translation context while keeping
-// request size reasonable. Larger batches improve context but increase latency.
-const BATCH_SIZE = 5;
+// DEFAULT_BATCH_SIZE = 10 (Issue 31): Increased from 5 for better efficiency.
+// Actual batch size is calculated dynamically by BatchCalculator based on model limits.
+const DEFAULT_BATCH_SIZE = 10;
 
 // Worker function: continuously pulls from queue until empty
-async function translationWorker(llmClient) {
+// batchConfig (Issue 31) contains: userBatchSize, contextWindow, maxOutputTokens, targetLanguage, systemPromptTokens
+async function translationWorker(llmClient, batchConfig = {}) {
     if (activeWorkers >= MAX_CONCURRENT_WORKERS) return;
     activeWorkers++;
     isTranslating = true;
 
     console.log('Worker started. Active:', activeWorkers);
 
+    // Extract batch config or use defaults
+    const {
+        userBatchSize = DEFAULT_BATCH_SIZE,
+        contextWindow = 128000,
+        maxOutputTokens = 16000,
+        targetLanguage = 'zh-CN',
+        systemPromptTokens = 1000 // Estimate for typical system prompt
+    } = batchConfig;
+
     while (translationQueue.length > 0) {
-        // Create a batch
+        // Issue 31: Calculate safe batch size dynamically using BatchCalculator
+        let safeBatchSize = userBatchSize;
+        if (typeof globalThis !== 'undefined' && globalThis.BatchCalculator) {
+            // Peek at queue to estimate batch content
+            const peekParagraphs = translationQueue.slice(0, userBatchSize).map(ctx => ctx.text || '');
+            safeBatchSize = globalThis.BatchCalculator.calculateSafeBatchSize({
+                userBatchSize,
+                paragraphs: peekParagraphs,
+                contextWindow,
+                maxOutputTokens,
+                targetLanguage,
+                systemPromptTokens
+            });
+            if (safeBatchSize < userBatchSize) {
+                console.log(`BatchCalculator: fallback from ${userBatchSize} to ${safeBatchSize}`);
+            }
+        }
+
+        // Create a batch with calculated safe size
         const batch = [];
-        while (batch.length < BATCH_SIZE && translationQueue.length > 0) {
+        while (batch.length < safeBatchSize && translationQueue.length > 0) {
             batch.push(translationQueue.shift());
         }
 
@@ -241,7 +269,10 @@ async function runTranslationProcess() {
             targetLanguage: 'zh-CN',
             userTranslationPrompt: '',
             excludedDomains: [],
-            excludedSelectors: []
+            excludedSelectors: [],
+            // Issue 31: batch size and provider info
+            batchSize: DEFAULT_BATCH_SIZE,
+            providerId: 'deepseek-volcengine'
         });
 
         const llmClient = new LLMClient(config);
@@ -263,8 +294,26 @@ async function runTranslationProcess() {
 
         translationQueue.push(...newNodes);
 
+        // Issue 31: Build batch config from provider defaults
+        let batchConfig = {
+            userBatchSize: config.batchSize || DEFAULT_BATCH_SIZE,
+            contextWindow: 128000,
+            maxOutputTokens: 16000,
+            targetLanguage: config.targetLanguage || 'zh-CN',
+            systemPromptTokens: 1000
+        };
+
+        // Get provider-specific limits from ModelRegistry if available
+        if (typeof globalThis !== 'undefined' && globalThis.ModelRegistry) {
+            const defaults = globalThis.ModelRegistry.getProviderDefaults(config.providerId);
+            if (defaults) {
+                batchConfig.contextWindow = defaults.contextWindow || 128000;
+                batchConfig.maxOutputTokens = defaults.maxTokens || 16000;
+            }
+        }
+
         while (activeWorkers < MAX_CONCURRENT_WORKERS && translationQueue.length > 0) {
-            translationWorker(llmClient);
+            translationWorker(llmClient, batchConfig);
         }
 
     } catch (e) {

@@ -26,6 +26,7 @@ All notable changes to this project will be documented in this file.
 -   **P2: Dead Code**: Removed unused `isAlreadyTranslated()` method from `DOMUtils`.
 
 ### Added
+-   **Smart Batch Size (Issue 31)**: Increased default batch size from 5 to 10 for improved translation efficiency. Added user-configurable "Paragraphs per Batch" setting in Advanced options (1-20). Implemented `BatchCalculator` module that dynamically calculates safe batch sizes based on model context/output limits with automatic fallback (10→5→3→1) when content exceeds limits.
 -   **External LLM Config (Issue 21)**: Model registry now loads from `llm_config.yml` (single source of truth). Build script converts YAML → JSON for runtime. Edit `llm_config.yml` and run `npm run build:config` to update providers/models.
 -   **Extended Config Format (Issue 21)**: Config now supports `temperature`, `max_tokens`, `context_window`, `pricing`, `rate_limit`, and `request_overrides` per provider. YAML anchors supported for shared endpoints.
 -   **URL Validation**: Options page now validates API URL format before saving.

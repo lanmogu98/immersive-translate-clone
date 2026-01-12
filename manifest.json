@@ -33,9 +33,12 @@
     {
       "matches": ["<all_urls>"],
       "js": [
-        "src/utils/llm-client.js", 
+        "src/utils/llm-config.generated.js",
+        "src/utils/model-registry.js",
+        "src/utils/batch-calculator.js",
+        "src/utils/llm-client.js",
         "src/utils/lang-detect.js",
-        "src/utils/dom-utils.js", 
+        "src/utils/dom-utils.js",
         "src/utils/richtext-v2.js",
         "src/content.js"
       ],

@@ -58,6 +58,9 @@ const DEFAULT_CONFIG = {
     apiKey: '',
     modelName: 'deepseek-v3-2-251201',
 
+    // Batch size for translation (Issue 31)
+    batchSize: 10,
+
     // Legacy field (kept for migration only)
     customPrompt: ''
 };
@@ -268,6 +271,12 @@ const restoreOptions = () => {
         getEl('apiUrl').value = items.apiUrl || DEFAULT_CONFIG.apiUrl;
         getEl('modelName').value = items.modelName || DEFAULT_CONFIG.modelName;
 
+        // Batch size (Issue 31)
+        const batchSizeEl = getEl('batchSize');
+        if (batchSizeEl) {
+            batchSizeEl.value = items.batchSize || DEFAULT_CONFIG.batchSize;
+        }
+
         // Set readonly state and derived values
         deriveApiFieldsFromSelection();
     });
@@ -282,6 +291,11 @@ const saveOptions = () => {
     const userTranslationPrompt = getEl('userTranslationPrompt')?.value?.trim() || '';
     const excludedDomains = parseMultilineList(getEl('excludedDomains')?.value || '');
     const excludedSelectors = parseMultilineList(getEl('excludedSelectors')?.value || '');
+
+    // Batch size (Issue 31): clamp to valid range [1, 20]
+    let batchSize = parseInt(getEl('batchSize')?.value, 10);
+    if (isNaN(batchSize) || batchSize < 1) batchSize = 1;
+    if (batchSize > 20) batchSize = 20;
 
     // Save current API key to provider cache (Bug 3 fix)
     if (apiKey) {
@@ -322,6 +336,7 @@ const saveOptions = () => {
             excludedDomains,
             excludedSelectors,
             providerApiKeys, // Save per-provider keys (Bug 3 fix)
+            batchSize, // Issue 31: batch size setting
         },
         () => {
             if (chrome.runtime.lastError) {
