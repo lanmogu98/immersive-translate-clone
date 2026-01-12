@@ -92,6 +92,12 @@
                     <input type="text" id="modelName" placeholder="deepseek-v3-2-251201">
                     <div class="hint">Auto-filled by Provider. Edit only when Provider is <strong>Custom</strong>.</div>
                 </div>
+
+                <div class="field">
+                    <label for="batchSize">Paragraphs per Batch</label>
+                    <input type="number" id="batchSize" min="1" max="50" placeholder="10">
+                    <div class="hint">Number of paragraphs to translate per API request. Higher values improve efficiency.</div>
+                </div>
             </div>
         </details>
 

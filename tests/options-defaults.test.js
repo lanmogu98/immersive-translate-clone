@@ -55,6 +55,16 @@ describe('Options Defaults Consistency (Issue 9)', () => {
       // Content between tags should be empty or just whitespace
       expect(textareaMatch[1].trim()).toBe('');
     });
+
+    test('batchSize input should exist in Advanced section (Issue 31a)', () => {
+      // batchSize input should exist
+      const batchSizeMatch = htmlContent.match(/<input[^>]*id=["']batchSize["'][^>]*>/);
+      expect(batchSizeMatch).not.toBeNull();
+      
+      const inputTag = batchSizeMatch[0];
+      // Should be a number input
+      expect(inputTag).toMatch(/type=["']number["']/);
+    });
   });
 
   describe('options.js DEFAULT_CONFIG', () => {
@@ -81,6 +91,11 @@ describe('Options Defaults Consistency (Issue 9)', () => {
     test('DEFAULT_CONFIG.apiKey should be empty string (security)', () => {
       // apiKey default should be empty to avoid leaking keys
       expect(optionsJsContent).toMatch(/apiKey\s*:\s*['"]['"],?/);
+    });
+
+    test('DEFAULT_CONFIG should contain batchSize with value 10 (Issue 31a)', () => {
+      // batchSize default should be 10 (increased from 5)
+      expect(optionsJsContent).toMatch(/batchSize\s*:\s*10/);
     });
   });
 
@@ -113,6 +128,17 @@ describe('Options Defaults Consistency (Issue 9)', () => {
       expect(optionsMatch).not.toBeNull();
       expect(contentMatch[1]).toBe(optionsMatch[1]);
     });
+
+    test('content.js should use same batchSize default as options.js (Issue 31a)', () => {
+      // content.js defines DEFAULT_BATCH_SIZE constant
+      const contentMatch = contentJsContent.match(/DEFAULT_BATCH_SIZE\s*=\s*(\d+)/);
+      const optionsMatch = optionsJsContent.match(/batchSize\s*:\s*(\d+)/);
+      
+      expect(contentMatch).not.toBeNull();
+      expect(optionsMatch).not.toBeNull();
+      expect(contentMatch[1]).toBe(optionsMatch[1]);
+      expect(contentMatch[1]).toBe('10'); // Default should be 10
+    });
   });
 
   describe('restoreOptions() behavior', () => {
@@ -128,6 +154,7 @@ describe('Options Defaults Consistency (Issue 9)', () => {
         <input id="apiUrl" />
         <input id="apiKey" />
         <input id="modelName" />
+        <input id="batchSize" type="number" />
         <button id="save">Save</button>
         <span id="status"></span>
       `;
@@ -176,6 +203,34 @@ describe('Options Defaults Consistency (Issue 9)', () => {
 
       expect(document.getElementById('apiUrl').value).toBe('https://custom.api.com');
       expect(document.getElementById('modelName').value).toBe('custom-model');
+    });
+
+    test('should populate batchSize from DEFAULT_CONFIG when storage is empty (Issue 31a)', () => {
+      jest.resetModules();
+      setupOptionsDom();
+
+      require('../src/options/options.js');
+      document.dispatchEvent(new Event('DOMContentLoaded'));
+
+      const batchSize = document.getElementById('batchSize').value;
+      expect(batchSize).toBe('10');
+    });
+
+    test('should restore stored batchSize value (Issue 31a)', () => {
+      jest.resetModules();
+      setupOptionsDom();
+
+      chrome.storage.sync.get.mockImplementation((defaults, callback) => {
+        callback({
+          ...defaults,
+          batchSize: 15
+        });
+      });
+
+      require('../src/options/options.js');
+      document.dispatchEvent(new Event('DOMContentLoaded'));
+
+      expect(document.getElementById('batchSize').value).toBe('15');
     });
   });
 });

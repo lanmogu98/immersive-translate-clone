@@ -11,6 +11,7 @@ function setupOptionsDom() {
     <input id="apiKey" type="password" />
     <button id="toggleApiKey">👁️</button>
     <input id="modelName" />
+    <input id="batchSize" type="number" />
     <button id="save">Save</button>
     <span id="status"></span>
   `;
@@ -114,5 +115,27 @@ describe('options page', () => {
     expect(apiKeyEl).not.toBeNull();
     expect(toggleBtn).not.toBeNull();
     expect(apiKeyEl.type).toBe('password');
+  });
+
+  test('saves batchSize when saving options (Issue 31a)', () => {
+    jest.resetModules();
+    setupOptionsDom();
+
+    require('../src/options/options.js');
+    document.dispatchEvent(new Event('DOMContentLoaded'));
+
+    document.getElementById('providerId').value = 'custom';
+    document.getElementById('apiUrl').value = 'https://api.example.com/v1';
+    document.getElementById('apiKey').value = 'test-key';
+    document.getElementById('modelName').value = 'test-model';
+    document.getElementById('targetLanguage').value = 'zh-CN';
+    document.getElementById('batchSize').value = '15';
+
+    chrome.storage.sync.set.mockClear();
+    document.getElementById('save').click();
+
+    expect(chrome.storage.sync.set).toHaveBeenCalled();
+    const lastCall = chrome.storage.sync.set.mock.calls[chrome.storage.sync.set.mock.calls.length - 1];
+    expect(lastCall[0].batchSize).toBe(15);
   });
 });

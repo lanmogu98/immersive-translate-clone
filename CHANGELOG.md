@@ -2,7 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased] - 2026-01-11
+## [Unreleased] - 2026-01-12
+
+### Added
+-   **Issue 31a: Batch Size Configuration**: Users can now configure the number of paragraphs translated per API request in Settings → Advanced → "Paragraphs per Batch". Default increased from 5 to 10 for better efficiency.
 
 ### Changed
 -   **Issue 30: Update Extension Icon**: Regenerated extension icons (16x16, 48x48, 128x128) from new source image `icons/imagen.png` using sharp. Added `scripts/generate-icons.js` for reproducible icon generation.

@@ -11,12 +11,13 @@ let activeWorkers = 0;
 // MAX_CONCURRENT_WORKERS = 1: Single worker ensures DOM stability and avoids API rate limits
 // when using batched requests. Increase only if API supports high concurrency.
 const MAX_CONCURRENT_WORKERS = 1;
-// BATCH_SIZE = 5: Groups paragraphs for better translation context while keeping
-// request size reasonable. Larger batches improve context but increase latency.
-const BATCH_SIZE = 5;
+// DEFAULT_BATCH_SIZE = 10: Default paragraphs per batch (Issue 31a).
+// User can configure via Settings; actual value read from storage in runTranslationProcess().
+const DEFAULT_BATCH_SIZE = 10;
 
 // Worker function: continuously pulls from queue until empty
-async function translationWorker(llmClient) {
+// batchSize (Issue 31a): number of paragraphs per batch, read from user settings
+async function translationWorker(llmClient, batchSize = DEFAULT_BATCH_SIZE) {
     if (activeWorkers >= MAX_CONCURRENT_WORKERS) return;
     activeWorkers++;
     isTranslating = true;
@@ -26,7 +27,7 @@ async function translationWorker(llmClient) {
     while (translationQueue.length > 0) {
         // Create a batch
         const batch = [];
-        while (batch.length < BATCH_SIZE && translationQueue.length > 0) {
+        while (batch.length < batchSize && translationQueue.length > 0) {
             batch.push(translationQueue.shift());
         }
 
@@ -241,7 +242,8 @@ async function runTranslationProcess() {
             targetLanguage: 'zh-CN',
             userTranslationPrompt: '',
             excludedDomains: [],
-            excludedSelectors: []
+            excludedSelectors: [],
+            batchSize: DEFAULT_BATCH_SIZE // Issue 31a
         });
 
         const llmClient = new LLMClient(config);
@@ -263,8 +265,11 @@ async function runTranslationProcess() {
 
         translationQueue.push(...newNodes);
 
+        // Issue 31a: Use user-configured batch size
+        const batchSize = config.batchSize || DEFAULT_BATCH_SIZE;
+
         while (activeWorkers < MAX_CONCURRENT_WORKERS && translationQueue.length > 0) {
-            translationWorker(llmClient);
+            translationWorker(llmClient, batchSize);
         }
 
     } catch (e) {
