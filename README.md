@@ -70,7 +70,7 @@ Open Translate 是一个轻量级的 Chrome 扩展，为网页提供“沉浸式
 ## 开发与贡献
 
 - **Agent-first 开发模式 (95%+)**: 本产品 **95%** 以上的代码由 LLM Agent 编写。人类主要负责定义产品方向与 Review；设计、实现和测试均由 Agent 完成。
-- **Agent 工作流规范**: 参见 [lanmogu98/dev-skills/dev-workflow](https://github.com/lanmogu98/dev-skills/dev-workflow)。
+- **Agent 工作流规范**: 参见 [lanmogu98/dev-skills](https://github.com/lanmogu98/dev-skills)。
 - **开发者入口**: 请阅读 `DEVELOPER_GUIDE.md` 了解架构、约束及如何运行验证。
 
 运行单元测试:
