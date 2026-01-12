@@ -114,6 +114,49 @@ describe('scan pipeline (Issue 19 + Issue 12)', () => {
     });
   });
 
+  describe('Custom elements support (body-text)', () => {
+    test('should scan body-text custom element used by sites like The Economist', () => {
+      document.body.innerHTML = `
+        <main>
+          <body-text id="bt">This is article content inside a body-text custom element that should be translated.</body-text>
+          <p id="regular">Regular paragraph content.</p>
+        </main>
+      `;
+      makeAllVisible('main, body-text, p');
+
+      const elements = DOMUtils.getTranslatableElements({
+        excludedSelectors: [],
+      });
+
+      // body-text custom element should be captured
+      expect(elements.find((e) => e.element.id === 'bt')).toBeDefined();
+      expect(elements.find((e) => e.element.id === 'regular')).toBeDefined();
+    });
+
+    test('should NOT scan parent div when it contains body-text children (prevent duplicate)', () => {
+      // Simulates The Economist DOM structure
+      document.body.innerHTML = `
+        <main>
+          <div class="article-text" id="container">
+            <body-text id="bt1">First paragraph with enough content to translate.</body-text>
+            <body-text id="bt2">Second paragraph with enough content to translate.</body-text>
+          </div>
+        </main>
+      `;
+      makeAllVisible('main, div, body-text');
+
+      const elements = DOMUtils.getTranslatableElements({
+        excludedSelectors: [],
+      });
+
+      // body-text elements should be captured
+      expect(elements.find((e) => e.element.id === 'bt1')).toBeDefined();
+      expect(elements.find((e) => e.element.id === 'bt2')).toBeDefined();
+      // Parent container should NOT be captured (would cause duplicate translation)
+      expect(elements.find((e) => e.element.id === 'container')).toBeUndefined();
+    });
+  });
+
   describe('Issue 12: language detection gating (zh target)', () => {
     test('when targetLanguage is zh-CN and LangDetect is available, should skip Chinese paragraphs', () => {
       const LangDetect = require('../src/utils/lang-detect.js');

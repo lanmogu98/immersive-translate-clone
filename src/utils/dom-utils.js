@@ -23,8 +23,9 @@ class DOMUtils {
 
         const DEFAULT_MIN_LEN = translateShortTexts ? 1 : 8;
         const MAIN_MIN_LEN = 3;
-        // Enhanced selector to include lists, blockquotes, and captions
-        const candidates = document.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, blockquote, td, div, figcaption, dt, dd');
+        // Enhanced selector to include lists, blockquotes, captions, and custom elements
+        // body-text: Used by sites like The Economist (SvelteKit) for article content
+        const candidates = document.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, blockquote, td, div, figcaption, dt, dd, body-text');
 
         for (const element of candidates) {
             // Basic visibility check
@@ -292,7 +293,8 @@ class DOMUtils {
 
         // Leaf-level containers that are typically translated individually
         // These are the "semantic" text containers that should be translated as units
-        const LEAF_CONTAINERS = ['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI', 'BLOCKQUOTE', 'FIGCAPTION', 'DT', 'DD'];
+        // BODY-TEXT: Custom element used by sites like The Economist
+        const LEAF_CONTAINERS = ['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI', 'BLOCKQUOTE', 'FIGCAPTION', 'DT', 'DD', 'BODY-TEXT'];
 
         // Check if element contains any leaf containers with significant text
         for (const tag of LEAF_CONTAINERS) {
