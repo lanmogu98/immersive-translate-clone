@@ -54,6 +54,61 @@ const API_TIMEOUT_MS = 60000;
 // Minimal fallback prompt if user hasn't configured one
 const FALLBACK_PROMPT = 'Translate the following text into Simplified Chinese. Maintain the original format. Use %% as paragraph separator for multi-paragraph input.';
 
+/**
+ * Issue 42: Sanitize error messages to prevent information leakage
+ * @param {number} statusCode - HTTP status code
+ * @param {string} rawError - Raw error message from API
+ * @returns {string} Sanitized user-friendly error message
+ */
+function sanitizeApiError(statusCode, rawError) {
+    // Map common HTTP status codes to user-friendly messages
+    const statusMessages = {
+        400: 'Bad request. Please check your settings.',
+        401: 'Authentication failed. Please check your API key.',
+        403: 'Access denied. Please verify your API key permissions.',
+        404: 'API endpoint not found. Please check your API URL.',
+        429: 'Rate limit exceeded. Please try again later.',
+        500: 'Server error. Please try again later.',
+        502: 'Server temporarily unavailable. Please try again.',
+        503: 'Service unavailable. Please try again later.',
+    };
+
+    // Use mapped message if available
+    if (statusMessages[statusCode]) {
+        // Log full error for debugging (only visible in extension console)
+        console.error(`API Error ${statusCode}:`, rawError);
+        return statusMessages[statusCode];
+    }
+
+    // For other errors, provide generic message
+    console.error(`API Error ${statusCode}:`, rawError);
+    return `API request failed (${statusCode}). Please try again.`;
+}
+
+/**
+ * Issue 42: Sanitize network error messages
+ * @param {string} errorMessage - Raw error message
+ * @returns {string} Sanitized error message
+ */
+function sanitizeNetworkError(errorMessage) {
+    // Log full error for debugging
+    console.error('Network Error:', errorMessage);
+
+    // Check for common network issues and provide friendly messages
+    if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
+        return 'Network connection failed. Please check your internet connection.';
+    }
+    if (errorMessage.includes('CORS') || errorMessage.includes('cross-origin')) {
+        return 'Connection blocked. The API may not support direct browser requests.';
+    }
+    if (errorMessage.includes('SSL') || errorMessage.includes('certificate')) {
+        return 'Secure connection failed. Please check the API URL.';
+    }
+
+    // Generic fallback
+    return 'Network error occurred. Please try again.';
+}
+
 async function streamTranslation(text, config, port) {
     const {
         apiUrl,
@@ -125,7 +180,8 @@ async function streamTranslation(text, config, port) {
 
         if (!response.ok) {
             const errText = await response.text();
-            port.postMessage({ error: `API Error: ${response.status} - ${errText}` });
+            // Issue 42: Sanitize error message to prevent information leakage
+            port.postMessage({ error: sanitizeApiError(response.status, errText) });
             return;
         }
 
@@ -177,7 +233,8 @@ async function streamTranslation(text, config, port) {
                 // Port already disconnected, ignore
             }
         } else {
-            port.postMessage({ error: `Network Error: ${err.message}` });
+            // Issue 42: Sanitize network error message
+            port.postMessage({ error: sanitizeNetworkError(err.message) });
         }
     }
 }
@@ -187,6 +244,8 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         streamTranslation,
         API_TIMEOUT_MS,
-        FALLBACK_PROMPT
+        FALLBACK_PROMPT,
+        sanitizeApiError,
+        sanitizeNetworkError,
     };
 }
