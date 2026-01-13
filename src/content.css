@@ -20,8 +20,10 @@
 }
 
 /* Chinese translations use Source Han Serif (思源宋体) */
+/* Simplified Chinese (zh-CN) uses Noto Serif SC */
+/* Traditional Chinese (zh-TW) uses Noto Serif TC */
 .immersive-translate-target.immersive-translate-zh {
-  font-family: "Noto Serif SC", "Source Han Serif SC", "Source Han Serif", serif;
+  font-family: "Noto Serif SC", "Noto Serif TC", "Source Han Serif SC", "Source Han Serif TC", "Source Han Serif", serif;
 }
 
 .immersive-translate-loading {

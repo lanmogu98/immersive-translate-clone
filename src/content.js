@@ -16,12 +16,26 @@ const MAX_CONCURRENT_WORKERS = 1;
 const DEFAULT_BATCH_SIZE = 10;
 
 // Issue 39: Load Google Fonts for Chinese translations (Source Han Serif / 思源宋体)
-function loadChineseFont() {
-    if (document.getElementById('immersive-translate-font')) return;
+// Supports both Simplified Chinese (SC) and Traditional Chinese (TC)
+function loadChineseFont(targetLanguage) {
+    const isTraditional = targetLanguage === 'zh-TW' || targetLanguage === 'zh-Hant';
+    const fontFamily = isTraditional ? 'Noto+Serif+TC' : 'Noto+Serif+SC';
+    const fontId = 'immersive-translate-font';
+
+    // Check if already loaded (and if it's the correct variant)
+    const existing = document.getElementById(fontId);
+    if (existing) {
+        // If switching between SC/TC, update the href
+        if (!existing.href.includes(fontFamily)) {
+            existing.href = `https://fonts.googleapis.com/css2?family=${fontFamily}:wght@400;700&display=swap`;
+        }
+        return;
+    }
+
     const link = document.createElement('link');
-    link.id = 'immersive-translate-font';
+    link.id = fontId;
     link.rel = 'stylesheet';
-    link.href = 'https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&display=swap';
+    link.href = `https://fonts.googleapis.com/css2?family=${fontFamily}:wght@400;700&display=swap`;
     document.head.appendChild(link);
 }
 
@@ -268,7 +282,7 @@ async function runTranslationProcess() {
         // Issue 39: Load Chinese font if target language is Chinese
         const targetLanguage = config.targetLanguage || 'zh-CN';
         if (targetLanguage.startsWith('zh')) {
-            loadChineseFont();
+            loadChineseFont(targetLanguage);
         }
 
         const newNodes = DOMUtils.getTranslatableElements({
