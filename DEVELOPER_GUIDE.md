@@ -55,7 +55,7 @@ Then load the unpacked extension in Chrome using the repo root as the extension 
 1.  **Safety First**: Never hardcode API Keys. Always read from `chrome.storage.sync`.
 2.  **Worker-Based Concurrency**: The `content.js` uses a "Producer-Consumer" model.
     -   *Producer*: `runTranslationProcess` uses `DOMUtils.getTranslatableElements(...)` and pushes tasks to `translationQueue`.
-    -   *Consumer*: `translationWorker` pulls tasks (in batches of 5) and processes them.
+    -   *Consumer*: `translationWorker` pulls tasks (in batches of 10 by default, configurable) and processes them.
     -   *Constraint*: Keep `MAX_CONCURRENT_WORKERS = 1` to ensure DOM stability and avoid Rate Limits.
 3.  **The "Immersive Protocol"**:
     -   We do not simply ask the LLM to translate. We send a strict protocol.

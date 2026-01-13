@@ -30,6 +30,7 @@ This is the **high-signal entrypoint** for near-term work.
 
 | ID | Priority | Item | Status | GH |
 | --- | --- | --- | --- | --- |
+| 37 | P1 | Fix duplicate translation when h2 contains body-text (custom element case sensitivity) | ✅ Done | — |
 | 30 | P2 | Update extension icon: generated 16/48/128px icons from `imagen.png` | ✅ Done | — |
 | 29 | P0 | Duplicate translation in list items: skip parent containers with translatable descendants | ✅ Done | — |
 | 32 | P0 | PDF viewer hijacks browser: disabled incomplete PDF redirect to restore native PDF viewing | ✅ Done | — |

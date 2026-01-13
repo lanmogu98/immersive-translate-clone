@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 -   **Custom Element Support (body-text)**: Fixed scanning to recognize `<body-text>` custom elements used by sites like The Economist. Previously, article content wrapped in custom Web Components was not captured for translation.
+-   **Duplicate Translation in Nested Custom Elements**: Fixed bug where `<h2>` containing `<body-text>` would cause both elements to be translated separately, resulting in duplicate translations. Root cause: `LEAF_CONTAINERS` used uppercase tag names which caused cross-browser compatibility issues with custom element CSS selectors.
 
 ### Changed
 -   **Issue 30: Update Extension Icon**: Regenerated extension icons (16x16, 48x48, 128x128) from new source image `icons/imagen.png` using sharp. Added `scripts/generate-icons.js` for reproducible icon generation.
