@@ -23,6 +23,34 @@
 
 ---
 
+## 🎨 UI/样式优化
+
+### Issue 38: 译文分隔样式优化（Translation Style Improvement）
+
+| 项目 | 内容 |
+|------|------|
+| **需求** | 1. 去掉分割中英译文的虚线<br>2. 中英译文之间间隔一倍行距（更自然的视觉分隔） |
+| **优先级** | P1 - High |
+| **当前状态** | `src/content.css` 中 `.immersive-translate-target` 使用：<br>- `border-top: 1px dashed rgba(0, 0, 0, 0.1)` ← 虚线<br>- `padding-top: 4px` ← 虚线与文字间距<br>- `margin-top: 8px` ← 固定像素间距 |
+| **改动文件** | `src/content.css` |
+| **技术方案** | ```css<br>.immersive-translate-target {<br>  /* 移除虚线 */<br>  border-top: none;<br>  padding-top: 0;<br>  /* 使用 1em 行距间隔（相对单位，适配不同字号） */<br>  margin-top: 1em;<br>}<br>``` |
+| **测试计划** | - 验证译文与原文之间无虚线<br>- 验证间距为一倍行距（视觉自然）<br>- 验证不同字号段落（h1-h6, p）的间距比例一致<br>- 验证 dark mode 下无残留虚线样式 |
+
+---
+
+### Issue 39: 中文译文字体优化（Chinese Font - Source Han Serif）
+
+| 项目 | 内容 |
+|------|------|
+| **需求** | 中文译文采用思源宋体（Source Han Serif），提升阅读体验 |
+| **优先级** | P1 - High |
+| **当前状态** | `src/content.css` 中 `font-family: inherit` 继承父元素字体 |
+| **改动文件** | `src/content.css`, `src/content.js`（动态加载字体） |
+| **技术方案** | **方案 A - Google Fonts 动态加载（推荐）**<br><br>1. 在 `content.js` 初始化时动态注入 Google Fonts link：<br>```javascript<br>// 检测目标语言为中文时加载思源宋体<br>function loadChineseFont() {<br>  if (document.getElementById('immersive-translate-font')) return;<br>  const link = document.createElement('link');<br>  link.id = 'immersive-translate-font';<br>  link.rel = 'stylesheet';<br>  link.href = 'https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&display=swap';<br>  document.head.appendChild(link);<br>}<br>```<br><br>2. CSS 中添加中文字体 class：<br>```css<br>.immersive-translate-target[lang="zh"],<br>.immersive-translate-target[lang="zh-CN"],<br>.immersive-translate-target[lang="zh-TW"] {<br>  font-family: "Noto Serif SC", "Source Han Serif SC", serif;<br>}<br>```<br><br>**方案 B - 本地字体（备选）**<br>- 将字体文件打包到扩展中（增加约 5-10MB 体积）<br>- 使用 `@font-face` 本地加载<br><br>**注意事项**：<br>- Google Fonts 的 Noto Serif SC 即为思源宋体简体中文版<br>- `display=swap` 确保字体加载期间使用 fallback 字体<br>- 仅在翻译目标为中文时加载字体，避免不必要的网络请求 |
+| **测试计划** | - 验证中文译文使用思源宋体<br>- 验证字体加载失败时 graceful fallback 到 serif<br>- 验证非中文目标语言不加载中文字体<br>- 验证字体 link 不重复注入 |
+
+---
+
 ## 🔴 新发现的 Bug（待修复）
 
 ### Issue 32: PDF Viewer 劫持浏览器（PDF Viewer Hijacks Browser）
