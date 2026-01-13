@@ -15,9 +15,20 @@ const MAX_CONCURRENT_WORKERS = 1;
 // User can configure via Settings; actual value read from storage in runTranslationProcess().
 const DEFAULT_BATCH_SIZE = 10;
 
+// Issue 39: Load Google Fonts for Chinese translations (Source Han Serif / 思源宋体)
+function loadChineseFont() {
+    if (document.getElementById('immersive-translate-font')) return;
+    const link = document.createElement('link');
+    link.id = 'immersive-translate-font';
+    link.rel = 'stylesheet';
+    link.href = 'https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&display=swap';
+    document.head.appendChild(link);
+}
+
 // Worker function: continuously pulls from queue until empty
 // batchSize (Issue 31a): number of paragraphs per batch, read from user settings
-async function translationWorker(llmClient, batchSize = DEFAULT_BATCH_SIZE) {
+// targetLanguage (Issue 39): used for language-specific styling (e.g., Chinese font)
+async function translationWorker(llmClient, batchSize = DEFAULT_BATCH_SIZE, targetLanguage = 'zh-CN') {
     if (activeWorkers >= MAX_CONCURRENT_WORKERS) return;
     activeWorkers++;
     isTranslating = true;
@@ -34,12 +45,12 @@ async function translationWorker(llmClient, batchSize = DEFAULT_BATCH_SIZE) {
         if (batch.length === 0) break;
 
         try {
-            await translateBatch(batch, llmClient);
+            await translateBatch(batch, llmClient, targetLanguage);
         } catch (err) {
             console.error('Batch translation failed:', err);
             // Mark failed items as error
             batch.forEach(ctx => {
-                const node = DOMUtils.injectTranslationNode(ctx.element);
+                const node = DOMUtils.injectTranslationNode(ctx.element, { targetLanguage });
                 DOMUtils.showError(node, err.message || 'Error');
             });
         }
@@ -55,7 +66,7 @@ async function translationWorker(llmClient, batchSize = DEFAULT_BATCH_SIZE) {
     }
 }
 
-async function translateBatch(batch, llmClient) {
+async function translateBatch(batch, llmClient, targetLanguage = 'zh-CN') {
     // RichText V2 marker (token protocol)
     const RICH_V2_MARKER = '[[ITC_RICH_V2]]';
 
@@ -71,10 +82,10 @@ async function translateBatch(batch, llmClient) {
         return 'plain';
     });
 
-    // 2. Prepare UI nodes
+    // 2. Prepare UI nodes (pass targetLanguage for language-specific styling)
     const nodes = batch.map((ctx) => {
         if (DOMUtils.isSeparatelyTranslated(ctx.element)) return null;
-        return DOMUtils.injectTranslationNode(ctx.element);
+        return DOMUtils.injectTranslationNode(ctx.element, { targetLanguage });
     });
 
     // 2. Prepare Text with %% separator
@@ -254,9 +265,15 @@ async function runTranslationProcess() {
             return;
         }
 
+        // Issue 39: Load Chinese font if target language is Chinese
+        const targetLanguage = config.targetLanguage || 'zh-CN';
+        if (targetLanguage.startsWith('zh')) {
+            loadChineseFont();
+        }
+
         const newNodes = DOMUtils.getTranslatableElements({
             excludedSelectors: config.excludedSelectors,
-            targetLanguage: config.targetLanguage,
+            targetLanguage: targetLanguage,
             // reserved for Issue 19 future options:
             // translateNavigation: config.translateNavigation,
             // translateShortTexts: config.translateShortTexts,
@@ -269,7 +286,7 @@ async function runTranslationProcess() {
         const batchSize = config.batchSize || DEFAULT_BATCH_SIZE;
 
         while (activeWorkers < MAX_CONCURRENT_WORKERS && translationQueue.length > 0) {
-            translationWorker(llmClient, batchSize);
+            translationWorker(llmClient, batchSize, targetLanguage);
         }
 
     } catch (e) {

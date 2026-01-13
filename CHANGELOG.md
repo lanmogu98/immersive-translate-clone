@@ -2,10 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased] - 2026-01-12
+## [Unreleased] - 2026-01-13
 
 ### Added
 -   **Issue 31a: Batch Size Configuration**: Users can now configure the number of paragraphs translated per API request in Settings → Advanced → "Paragraphs per Batch". Default increased from 5 to 10 for better efficiency.
+
+### Changed
+-   **Issue 38: Translation Style**: Removed dashed separator between original and translated text. Now uses 1em (one line-height) vertical gap for more natural visual separation.
+-   **Issue 39: Chinese Font**: Chinese translations now use Source Han Serif (思源宋体) via Google Fonts for improved readability. Font is dynamically loaded only when target language is Chinese.
 
 ### Fixed
 -   **Custom Element Support (body-text)**: Fixed scanning to recognize `<body-text>` custom elements used by sites like The Economist. Previously, article content wrapped in custom Web Components was not captured for translation.

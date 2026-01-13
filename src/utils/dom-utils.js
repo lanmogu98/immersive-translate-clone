@@ -318,17 +318,26 @@ class DOMUtils {
         return element.querySelector(':scope > .immersive-translate-target') !== null;
     }
 
-    static injectTranslationNode(element) {
+    static injectTranslationNode(element, options = {}) {
         const node = document.createElement('span'); // Use SPAN to be valid inside P and H tags
         node.className = 'immersive-translate-target';
+
+        // Add language-specific class for Chinese translations (Issue 39)
+        const targetLang = options.targetLanguage || '';
+        const isChinese = targetLang.startsWith('zh');
+        if (isChinese) {
+            node.classList.add('immersive-translate-zh');
+        }
 
         // Copy font styles AND alignment from the original element
         const style = window.getComputedStyle(element);
         node.style.fontSize = style.fontSize;
         node.style.fontWeight = style.fontWeight;
-        // We don't copy font-family directly as 'inherit' in CSS usually works better if we use standard tags,
-        // but copying ensures we get custom webfonts
-        node.style.fontFamily = style.fontFamily;
+        // For Chinese translations, let CSS handle font-family (Source Han Serif)
+        // For other languages, copy original font-family to preserve custom webfonts
+        if (!isChinese) {
+            node.style.fontFamily = style.fontFamily;
+        }
         node.style.color = style.color;
         node.style.textAlign = style.textAlign; // Critical for headers
         node.style.lineHeight = style.lineHeight;

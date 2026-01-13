@@ -2,31 +2,26 @@
 .immersive-translate-target {
   display: block;
   /* Force block behavior for the span */
-  margin-top: 8px;
-  /* Internal spacing */
+  margin-top: 1em;
+  /* Use relative unit for natural spacing (1 line-height gap) */
   margin-bottom: 2px;
   color: inherit;
   /* Inherit color from parent */
   opacity: 0.85;
   /* Slightly lighter to distinguish */
   font-family: inherit;
-  /* Inherit font */
+  /* Inherit font (overridden for Chinese below) */
   font-weight: normal;
   line-height: normal;
   /* text-align: left;  <-- Removed to support centered text */
-  /* Visual separation without boxiness */
-  border-top: 1px dashed rgba(0, 0, 0, 0.1);
-  padding-top: 4px;
   background-color: transparent;
   width: 100%;
   box-sizing: border-box;
 }
 
-/* Dark mode adjustment (simple heuristic) */
-@media (prefers-color-scheme: dark) {
-  .immersive-translate-target {
-    border-top-color: rgba(255, 255, 255, 0.2);
-  }
+/* Chinese translations use Source Han Serif (思源宋体) */
+.immersive-translate-target.immersive-translate-zh {
+  font-family: "Noto Serif SC", "Source Han Serif SC", "Source Han Serif", serif;
 }
 
 .immersive-translate-loading {

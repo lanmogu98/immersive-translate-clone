@@ -19,8 +19,8 @@ This is the **high-signal entrypoint** for near-term work.
 | ID | Priority | Item | Status | GH |
 | --- | --- | --- | --- | --- |
 | 31a | P1 | Batch size configuration: increase default from 5→10, add Settings UI (Advanced section) | ✅ Done | — |
-| 38 | P1 | Translation style: remove dashed separator, use 1em line-height gap between original and translated text | 🔲 Pending | — |
-| 39 | P1 | Chinese font: use Source Han Serif (思源宋体) for Chinese translations via Google Fonts | 🔲 Pending | — |
+| 38 | P1 | Translation style: remove dashed separator, use 1em line-height gap between original and translated text | ✅ Done | — |
+| 39 | P1 | Chinese font: use Source Han Serif (思源宋体) for Chinese translations via Google Fonts | ✅ Done | — |
 | 31b | P2 | Smart batch fallback: check context/output token limits and auto-reduce batch size | 🔲 Pending | — |
 | 33 | P2 | Extract magic numbers as named constants: consolidate `8`, `3`, `10` thresholds in `dom-utils.js` with documented rationale | 🔲 Pending | — |
 | 34 | P2 | Improve visibility check: `offsetParent === null` misses `position: fixed` elements; add `getComputedStyle` fallback | 🔲 Pending | — |
