@@ -28,12 +28,12 @@ This is the **high-signal entrypoint** for near-term work.
 | 13 | P3 | Translation caching | 🔲 Pending | — |
 | 35 | P3 | Refactor `getTranslatableElements` to pipeline pattern: split 95-line function into composable filter stages | 🔲 Pending | — |
 | 36 | P3 | Add Shadow DOM support: traverse shadow roots for Web Components (YouTube, GitHub Codespaces, etc.) | 🔲 Pending | — |
-| 38 | P1 | 优化测试系统：解决中英段落排布问题（DOM Layout Test System） | 🔄 In Progress | — |
-
 ### Recently Done
 
 | ID | Priority | Item | Status | GH |
 | --- | --- | --- | --- | --- |
+| **DOM Layout Test System** | | | | |
+| 38-layout | P1 | 优化测试系统：解决中英段落排布问题（DOM Layout Test System）| ✅ Done | — |
 | **Security Sprint Completed** | | | | |
 | 38 | P0 | XSS防护: 富文本渲染时消毒DOM克隆元素的危险属性(event handlers) | ✅ Done | — |
 | 39 | P1 | XSS防护: 使用textContent替代innerHTML设置固定文本,避免潜在注入风险 | ✅ Done | — |

@@ -18,6 +18,13 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 -   **Issue 31a: Batch Size Configuration**: Users can now configure the number of paragraphs translated per API request in Settings → Advanced → "Paragraphs per Batch". Default increased from 5 to 10 for better efficiency.
+-   **DOM Layout Test System (Issue 38-layout)**: Added `tests/dom-layout.test.js` with 15 test cases for paragraph alignment issues. Created fixture system in `tests/fixtures/dom-layout/` with input/expected HTML pairs for systematic testing.
+
+### Fixed
+-   **Issue 38-layout Case #1 (Word Divs)**: Skip elements with `aria-hidden="true"` in translation scanning to prevent duplicate translations of decorative elements (e.g., animated word containers on Anthropic blog).
+-   **Issue 38-layout Case #2 (BR Paragraphs)**: Split paragraphs at `<br><br>` separators for independent translation. Added `hasBrBrSeparator()` and `wrapBrBrParagraphs()` to fix merged translation alignment.
+-   **Issue 38-layout Case #3 (Translation Styles)**: Remove inline styles from `injectTranslationNode()`, use CSS classes for consistent styling. Added font inheritance (size, weight, style) and Chinese font fallback stack (Source Han Serif → Noto → PingFang).
+-   **CSS font-family syntax**: Fixed invalid `inherit` keyword in `font-family` declaration - cannot mix with font names.
 
 ### Fixed
 -   **Custom Element Support (body-text)**: Fixed scanning to recognize `<body-text>` custom elements used by sites like The Economist. Previously, article content wrapped in custom Web Components was not captured for translation.
