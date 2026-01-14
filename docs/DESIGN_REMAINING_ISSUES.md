@@ -353,6 +353,7 @@ Phase 5: UI 重构
 | # | 问题类型 | 触发条件 | 错误表现 | Fixture | 状态 |
 |---|----------|----------|----------|---------|------|
 | 1 | 重复翻译 + 错误拆分 | `<h1>` 内嵌套多个 `<div class="word">` | 每个 word 被单独翻译 + 整体再次翻译（4次输出） | `case-001-word-divs.html` | 待修复 |
+| 2 | 段落错位 / 合并翻译 | `<p>` 内含多个 `<br><br>` 分隔的逻辑段落 | 多段译文合并放在 `<p>` 末尾，与原文位置不对应 | `case-002-br-paragraphs.html` | 待修复 |
 
 ---
 
@@ -427,6 +428,87 @@ describe('Case #1: Word Divs', () => {
 
   it('should translate h1 only once', () => {
     // Assert: translation appears once, not 4 times
+  });
+});
+```
+
+---
+
+### 案例 #2: BR 段落合并翻译
+
+| 项目 | 内容 |
+|------|------|
+| **问题类型** | 段落错位 / 合并翻译 |
+| **来源页面** | Anthropic 官网（Agent Skills 介绍页） |
+| **错误表现** | 1. 单个 `<p>` 内含两个用 `<br><br>` 分隔的逻辑段落<br>2. 整个 `<p>` 被当作一个翻译单元<br>3. 合并的译文放在 `<p>` 末尾，与原文段落位置不对应 |
+| **触发条件** | `<p>` 元素内包含 `<br><br>` 分隔的多个逻辑段落 |
+
+**错误输出 HTML：**
+```html
+<p>
+  Claude automatically invokes relevant skills based on your task—no manual selection needed. You'll even see skills in Claude's chain of thought as it works.
+  <br><br>
+  Creating skills is simple. The "skill-creator" skill provides interactive guidance: Claude asks about your workflow, generates the folder structure, formats the SKILL.md file, and bundles the resources you need. No manual file editing required.
+  <span class="immersive-translate-target">
+    Claude会根据您的任务自动调用相关技能——无需手动选择。您甚至能在Claude的思考链路中看到技能调用过程。创建技能非常简单："技能创建器"技能提供交互式指导：Claude会询问您的工作流程，生成文件夹结构，格式化SKILL.md文件，并打包所需资源。无需手动编辑文件。
+  </span>  <!-- ❌ 合并译文放在末尾 -->
+</p>
+```
+
+**期望输出 HTML（参考沉浸式翻译）：**
+```html
+<p>
+  Claude automatically invokes relevant skills based on your task—no manual selection needed. You'll even see skills in Claude's chain of thought as it works.
+  <font class="immersive-translate-target-wrapper">
+    <br>
+    <font class="immersive-translate-target-inner">Claude 会根据您的任务自动调用相关技能——无需手动选择。您甚至能在 Claude 的思考过程中看到它使用的技能。</font>
+  </font>  <!-- ✓ 译文1紧跟原文1 -->
+  <br><br>
+  Creating skills is simple. The "skill-creator" skill provides interactive guidance: Claude asks about your workflow, generates the folder structure, formats the SKILL.md file, and bundles the resources you need. No manual file editing required.
+  <font class="immersive-translate-target-wrapper">
+    <br>
+    <font class="immersive-translate-target-inner">创建技能非常简单。"skill-creator"技能提供交互式引导：Claude 会询问您的工作流程，自动生成文件夹结构、格式化 SKILL.md 文件，并打包所需资源。整个过程无需手动编辑文件。</font>
+  </font>  <!-- ✓ 译文2紧跟原文2 -->
+</p>
+```
+
+**问题根源分析：**
+```
+当前行为:
+<p> ─────────────────────────────────────────┐
+│ 原文段落1                                   │
+│ <br><br>                                   │ 整个 <p> 作为一个
+│ 原文段落2                                   │ 翻译单元
+│ <span>译文1+译文2（合并）</span>             │ ← 译文放在末尾
+└─────────────────────────────────────────────┘
+
+期望行为:
+<p> ─────────────────────────────────────────┐
+│ 原文段落1                                   │
+│ <font>译文1</font>                         │ ← 紧跟段落1
+│ <br><br>                                   │
+│ 原文段落2                                   │
+│ <font>译文2</font>                         │ ← 紧跟段落2
+└─────────────────────────────────────────────┘
+```
+
+**修复方向：**
+1. 在扫描阶段识别 `<br><br>` 作为段落分隔符
+2. 将包含 `<br><br>` 的 `<p>` 拆分为多个逻辑翻译单元
+3. 或：在翻译结果插入时，根据 `<br><br>` 位置分段插入译文
+4. 需要 LLM 返回分段翻译结果（用 `%%` 分隔符对应每个逻辑段落）
+
+**测试断言：**
+```javascript
+// tests/dom-layout.test.js
+describe('Case #2: BR Paragraphs', () => {
+  it('should split p with <br><br> into multiple translation units', () => {
+    // Setup: p with two paragraphs separated by <br><br>
+    // Assert: two translation spans inserted, each after its source paragraph
+  });
+
+  it('should NOT merge translations at the end of p', () => {
+    // Assert: no single translation span containing both translations
   });
 });
 ```
