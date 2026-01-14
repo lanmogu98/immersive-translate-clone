@@ -17,14 +17,25 @@ Open Translate 是一个轻量级的 Chrome 扩展，为网页提供“沉浸式
 
 > **注意**: 这是一个实验性项目，尚未上架 Chrome 应用商店。需要通过“开发者模式”安装。
 
-1. **获取代码**: 克隆或下载本仓库到本地。
-2. **加载扩展**:
-   - 打开 Chrome 浏览器，进入 `chrome://extensions`。
-   - 打开右上角的 **开发者模式 (Developer mode)** 开关。
-   - 点击左上角的 **加载已解压的扩展程序 (Load unpacked)**。
-   - 选择本仓库的根目录（包含 `manifest.json` 的文件夹）。
+### 方式一：从 GitHub Releases 安装（推荐）
 
-> 开发者说明：只有在你需要**修改 `llm_config.yml`（提供商/模型列表）**或运行测试时，才需要本地 Node/npm（例如运行 `npm test` / `npm run build:config`）。
+1. 前往 [Releases 页面](https://github.com/lanmogu98/immersive-translate-clone/releases)
+2. 下载最新版本的 `open-translate-vX.Y.Z.zip`
+3. 解压 zip 文件到任意目录
+4. 打开 Chrome 浏览器，进入 `chrome://extensions`
+5. 打开右上角的 **开发者模式 (Developer mode)** 开关
+6. 点击 **加载已解压的扩展程序 (Load unpacked)**
+7. 选择刚才解压的文件夹
+
+### 方式二：从源码安装（开发者）
+
+1. 克隆或下载本仓库到本地
+2. 打开 Chrome 浏览器，进入 `chrome://extensions`
+3. 打开右上角的 **开发者模式** 开关
+4. 点击 **加载已解压的扩展程序**
+5. 选择仓库根目录（包含 `manifest.json` 的文件夹）
+
+> **开发者说明**: 只有在你需要**修改 `llm_config.yml`（提供商/模型列表）**或运行测试时，才需要本地 Node/npm。详见 `DEVELOPER_GUIDE.md`。
 
 ## 配置 (Config)
 

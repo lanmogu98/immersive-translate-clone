@@ -11,7 +11,8 @@
     "pretest": "npm run build:config",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:ci": "jest --runInBand"
+    "test:ci": "jest --runInBand",
+    "package": "bash scripts/package-release.sh"
   },
   "devDependencies": {
     "jest": "29.7.0",
