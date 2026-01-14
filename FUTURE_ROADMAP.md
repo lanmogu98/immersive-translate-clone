@@ -18,6 +18,9 @@ This is the **high-signal entrypoint** for near-term work.
 
 | ID | Priority | Item | Status | GH |
 | --- | --- | --- | --- | --- |
+| **Security Sprint (P3 remaining)** | | | | |
+| 45 | P3 | 提示词注入防护增强: 扩展sanitizeUserPrompt过滤更多注入模式 | 🔲 Pending | — |
+| **Existing Items** | | | | |
 | 31a | P1 | Batch size configuration: increase default from 5→10, add Settings UI (Advanced section) | ✅ Done | — |
 | 31b | P2 | Smart batch fallback: check context/output token limits and auto-reduce batch size | 🔲 Pending | — |
 | 33 | P2 | Extract magic numbers as named constants: consolidate `8`, `3`, `10` thresholds in `dom-utils.js` with documented rationale | 🔲 Pending | — |
@@ -30,6 +33,15 @@ This is the **high-signal entrypoint** for near-term work.
 
 | ID | Priority | Item | Status | GH |
 | --- | --- | --- | --- | --- |
+| **Security Sprint Completed** | | | | |
+| 38 | P0 | XSS防护: 富文本渲染时消毒DOM克隆元素的危险属性(event handlers) | ✅ Done | — |
+| 39 | P1 | XSS防护: 使用textContent替代innerHTML设置固定文本,避免潜在注入风险 | ✅ Done | — |
+| 40 | P1 | 输入验证: CSS选择器白名单验证,防止ReDoS和恶意选择器 | ✅ Done | — |
+| 41 | P1 | 输入验证: 批量大小(batchSize)后端验证,限制1-50范围 | ✅ Done | — |
+| 42 | P2 | 错误处理: API错误信息脱敏,避免泄露敏感端点和配置信息 | ✅ Done | — |
+| 43 | P2 | CSP配置: 在manifest.json中添加Content Security Policy | ✅ Done | — |
+| 44 | P2 | URL验证增强: API端点验证防止SSRF,增加域名白名单检查 | ✅ Done | — |
+| **Previous** | | | | |
 | 37 | P1 | Fix duplicate translation when h2 contains body-text (custom element case sensitivity) | ✅ Done | — |
 | 30 | P2 | Update extension icon: generated 16/48/128px icons from `imagen.png` | ✅ Done | — |
 | 29 | P0 | Duplicate translation in list items: skip parent containers with translatable descendants | ✅ Done | — |

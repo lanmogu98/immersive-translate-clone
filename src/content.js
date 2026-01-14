@@ -14,6 +14,21 @@ const MAX_CONCURRENT_WORKERS = 1;
 // DEFAULT_BATCH_SIZE = 10: Default paragraphs per batch (Issue 31a).
 // User can configure via Settings; actual value read from storage in runTranslationProcess().
 const DEFAULT_BATCH_SIZE = 10;
+// Issue 41: Batch size limits for security and performance
+const MIN_BATCH_SIZE = 1;
+const MAX_BATCH_SIZE = 50;
+
+/**
+ * Issue 41: Validate and sanitize batch size
+ * @param {number} size - User-provided batch size
+ * @returns {number} Validated batch size within safe range
+ */
+function validateBatchSize(size) {
+    const parsed = parseInt(size, 10);
+    if (isNaN(parsed) || parsed < MIN_BATCH_SIZE) return DEFAULT_BATCH_SIZE;
+    if (parsed > MAX_BATCH_SIZE) return MAX_BATCH_SIZE;
+    return parsed;
+}
 
 // Worker function: continuously pulls from queue until empty
 // batchSize (Issue 31a): number of paragraphs per batch, read from user settings
@@ -120,7 +135,7 @@ async function translateBatch(batch, llmClient) {
                                 const out = content.trim();
                                 const ok = globalThis.RichTextV2.renderToNode(node, richTokenized[currentNodeIndex], out);
                                 if (!ok) {
-                                    node.innerHTML = '';
+                                    // Issue 39: textContent automatically clears children, no need for innerHTML
                                     node.textContent = out;
                                 }
                             } else {
@@ -191,7 +206,7 @@ async function translateBatch(batch, llmClient) {
                         const out = buffer.trim();
                         const ok = globalThis.RichTextV2.renderToNode(node, richTokenized[currentNodeIndex], out);
                         if (!ok) {
-                            node.innerHTML = '';
+                            // Issue 39: textContent automatically clears children, no need for innerHTML
                             node.textContent = out;
                         }
                     } else {
@@ -265,8 +280,8 @@ async function runTranslationProcess() {
 
         translationQueue.push(...newNodes);
 
-        // Issue 31a: Use user-configured batch size
-        const batchSize = config.batchSize || DEFAULT_BATCH_SIZE;
+        // Issue 31a + 41: Use user-configured batch size with validation
+        const batchSize = validateBatchSize(config.batchSize);
 
         while (activeWorkers < MAX_CONCURRENT_WORKERS && translationQueue.length > 0) {
             translationWorker(llmClient, batchSize);
@@ -296,5 +311,8 @@ if (typeof module !== 'undefined' && module.exports) {
         translationWorker,
         runTranslationProcess,
         isExcludedDomain,
+        validateBatchSize,
+        MIN_BATCH_SIZE,
+        MAX_BATCH_SIZE,
     };
 }

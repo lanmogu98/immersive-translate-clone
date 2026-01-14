@@ -202,9 +202,63 @@ class DOMUtils {
         return !meaningfulTextPattern.test(remainingText);
     }
 
+    /**
+     * Issue 40: Validate CSS selector for safety
+     * Prevents ReDoS attacks and malicious selectors
+     * @param {string} selector - CSS selector to validate
+     * @returns {boolean} True if selector is safe to use
+     */
+    static isValidCSSSelector(selector) {
+        if (!selector || typeof selector !== 'string') return false;
+
+        // Length limit to prevent extremely long selectors
+        if (selector.length > 200) return false;
+
+        // Block potentially dangerous patterns
+        const dangerousPatterns = [
+            // Extremely deep nesting that could cause performance issues
+            /(\s*>\s*){10,}/,        // More than 10 direct child selectors
+            /(\s+){20,}/,            // More than 20 descendant selectors
+            // Attribute selectors with regex-like patterns (potential ReDoS)
+            /\[.*\*=.*\*=.*\]/,      // Multiple wildcard attributes
+            /\[.*\$=.*\$=.*\]/,      // Multiple ends-with attributes
+            /\[.*\^=.*\^=.*\]/,      // Multiple starts-with attributes
+            // Extremely complex pseudo-selectors
+            /:not\(.*:not\(.*:not\(/,  // Nested :not more than twice
+            // Universal selector abuse
+            /^\s*\*\s*\*\s*\*/,      // Multiple universal selectors at start
+        ];
+
+        for (const pattern of dangerousPatterns) {
+            if (pattern.test(selector)) return false;
+        }
+
+        // Try to parse the selector (catches syntax errors)
+        try {
+            document.querySelector(selector);
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
     static isExcludedBySelector(element, selectors) {
         if (!selectors || !Array.isArray(selectors) || !element) return false;
         return selectors.some((sel) => {
+            // Issue 40: Validate selector before use
+            // Cache results to avoid repeated document.querySelector() calls in scan loops.
+            // This keeps selector validation O(M) per scan rather than O(N*M) per element.
+            if (!this._cssSelectorSafetyCache) this._cssSelectorSafetyCache = new Map();
+            let isSafe = this._cssSelectorSafetyCache.get(sel);
+            if (isSafe === undefined) {
+                isSafe = this.isValidCSSSelector(sel);
+                this._cssSelectorSafetyCache.set(sel, isSafe);
+                // Cap cache size to avoid unbounded growth (user can paste large lists).
+                if (this._cssSelectorSafetyCache.size > 2000) {
+                    this._cssSelectorSafetyCache.clear();
+                }
+            }
+            if (!isSafe) return false;
             try {
                 return element.matches(sel) || element.closest(sel) !== null;
             } catch (e) {
@@ -340,8 +394,11 @@ class DOMUtils {
         // Add a small top margin for separation, but handle it in CSS
         // node.style.display = 'block'; // Defined in CSS
 
-        // Loading State
-        node.innerHTML = '<span class="immersive-translate-loading">Thinking...</span>';
+        // Loading State - Issue 39: Use DOM API instead of innerHTML for XSS safety
+        const loadingSpan = document.createElement('span');
+        loadingSpan.className = 'immersive-translate-loading';
+        loadingSpan.textContent = 'Thinking...';
+        node.appendChild(loadingSpan);
 
         // Insert AS LAST CHILD of the original element
         // This prevents breaking Flex/Grid layouts (which happens if we add a sibling)
@@ -354,7 +411,10 @@ class DOMUtils {
         // Determine if this is the first chunk of actual text
         const loading = node.querySelector('.immersive-translate-loading');
         if (loading) {
-            node.innerHTML = ''; // Clear loading spinner
+            // Issue 39: Use DOM API instead of innerHTML for XSS safety
+            while (node.firstChild) {
+                node.removeChild(node.firstChild);
+            }
         }
         node.textContent += text;
     }
@@ -362,7 +422,8 @@ class DOMUtils {
     static removeLoadingState(node) {
         if (node.classList.contains('immersive-translate-loading')) {
             node.classList.remove('immersive-translate-loading');
-            node.innerHTML = ''; // Clear text if it was just spinner
+            // Issue 39: Use textContent instead of innerHTML for XSS safety
+            node.textContent = '';
         }
         // Also ensure no spinner remains inside
         const loading = node.querySelector('.immersive-translate-loading');

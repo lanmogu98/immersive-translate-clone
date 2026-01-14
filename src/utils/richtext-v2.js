@@ -21,11 +21,108 @@ function isFootnoteReferenceElement(el) {
   return false;
 }
 
+// Issue 38: Dangerous attributes that could execute JavaScript (XSS vectors)
+const DANGEROUS_ATTRS = new Set([
+  // Event handlers (comprehensive list)
+  'onabort', 'onactivate', 'onafterprint', 'onanimationend', 'onanimationiteration',
+  'onanimationstart', 'onauxclick', 'onbeforecopy', 'onbeforecut', 'onbeforeinput',
+  'onbeforepaste', 'onbeforeprint', 'onbeforeunload', 'onblur', 'oncancel',
+  'oncanplay', 'oncanplaythrough', 'onchange', 'onclick', 'onclose', 'oncontextmenu',
+  'oncopy', 'oncuechange', 'oncut', 'ondblclick', 'ondrag', 'ondragend', 'ondragenter',
+  'ondragleave', 'ondragover', 'ondragstart', 'ondrop', 'ondurationchange', 'onemptied',
+  'onended', 'onerror', 'onfocus', 'onfocusin', 'onfocusout', 'onformdata',
+  'onfullscreenchange', 'onfullscreenerror', 'ongotpointercapture', 'onhashchange',
+  'oninput', 'oninvalid', 'onkeydown', 'onkeypress', 'onkeyup', 'onlanguagechange',
+  'onload', 'onloadeddata', 'onloadedmetadata', 'onloadstart', 'onlostpointercapture',
+  'onmessage', 'onmessageerror', 'onmousedown', 'onmouseenter', 'onmouseleave',
+  'onmousemove', 'onmouseout', 'onmouseover', 'onmouseup', 'onmousewheel', 'onoffline',
+  'ononline', 'onpagehide', 'onpageshow', 'onpaste', 'onpause', 'onplay', 'onplaying',
+  'onpointercancel', 'onpointerdown', 'onpointerenter', 'onpointerleave',
+  'onpointerlockchange', 'onpointerlockerror', 'onpointermove', 'onpointerout',
+  'onpointerover', 'onpointerup', 'onpopstate', 'onprogress', 'onratechange',
+  'onrejectionhandled', 'onreset', 'onresize', 'onscroll', 'onsearch',
+  'onsecuritypolicyviolation', 'onseeked', 'onseeking', 'onselect', 'onselectionchange',
+  'onselectstart', 'onslotchange', 'onstalled', 'onstorage', 'onsubmit', 'onsuspend',
+  'ontimeupdate', 'ontoggle', 'ontouchcancel', 'ontouchend', 'ontouchmove',
+  'ontouchstart', 'ontransitioncancel', 'ontransitionend', 'ontransitionrun',
+  'ontransitionstart', 'onunhandledrejection', 'onunload', 'onvolumechange',
+  'onwaiting', 'onwebkitanimationend', 'onwebkitanimationiteration',
+  'onwebkitanimationstart', 'onwebkittransitionend', 'onwheel',
+  // Dangerous URI attributes
+  'formaction', 'xlink:href', 'action', 'srcdoc', 'data'
+]);
+
+// Attributes whitelist by tag (Issue 38: only preserve safe attributes)
+const SAFE_ATTRS_BY_TAG = {
+  'A': new Set(['href', 'title', 'target', 'rel', 'class', 'id', 'lang', 'dir', 'hreflang']),
+  'STRONG': new Set(['class', 'id', 'lang', 'dir']),
+  'EM': new Set(['class', 'id', 'lang', 'dir']),
+  'CODE': new Set(['class', 'id', 'lang', 'dir']),
+  'SUP': new Set(['class', 'id', 'lang', 'dir']),
+  'SPAN': new Set(['class', 'id', 'lang', 'dir']),
+};
+
+/**
+ * Sanitize a cloned element by removing dangerous attributes
+ * Issue 38: XSS防护 - 消毒DOM克隆元素的危险属性
+ * @param {Element} clone - The cloned element to sanitize
+ * @returns {Element} The sanitized element
+ */
+function sanitizeClonedElement(clone) {
+  if (!clone || !clone.attributes) return clone;
+
+  const tag = clone.tagName;
+  const safeAttrs = SAFE_ATTRS_BY_TAG[tag] || new Set(['class', 'id', 'lang', 'dir']);
+
+  // Collect attributes to remove (can't modify while iterating)
+  const toRemove = [];
+  for (const attr of Array.from(clone.attributes)) {
+    const name = attr.name.toLowerCase();
+    // Remove if: explicitly dangerous OR not in whitelist
+    if (DANGEROUS_ATTRS.has(name) || !safeAttrs.has(name)) {
+      toRemove.push(attr.name);
+    }
+  }
+
+  // Remove dangerous/unknown attributes
+  for (const attrName of toRemove) {
+    clone.removeAttribute(attrName);
+  }
+
+  // Special handling for href: sanitize javascript: and data: URLs
+  if (clone.hasAttribute('href')) {
+    const href = clone.getAttribute('href') || '';
+    const hrefLower = href.trim().toLowerCase();
+    if (hrefLower.startsWith('javascript:') ||
+        hrefLower.startsWith('data:') ||
+        hrefLower.startsWith('vbscript:')) {
+      clone.setAttribute('href', '#');
+    }
+  }
+
+  return clone;
+}
+
+/**
+ * Issue 38: Deep clone + sanitize all descendant elements.
+ * Needed for atomic token clones (e.g., footnote refs) which previously used cloneNode(true)
+ * without attribute sanitization.
+ * @param {Element} el
+ * @returns {Element}
+ */
+function deepCloneAndSanitize(el) {
+  const clone = el.cloneNode(true);
+  sanitizeClonedElement(clone);
+  if (clone.querySelectorAll) {
+    clone.querySelectorAll('*').forEach((child) => sanitizeClonedElement(child));
+  }
+  return clone;
+}
+
 function shallowClonePreservingAttrs(el) {
   const clone = el.cloneNode(false);
-  // For safety: keep only existing attributes already on the page (cloneNode(false) does this).
-  // No additional normalization needed here.
-  return clone;
+  // Issue 38: Sanitize the clone to remove dangerous attributes (event handlers, etc.)
+  return sanitizeClonedElement(clone);
 }
 
 function makeToken(id, isClose = false) {
@@ -56,7 +153,7 @@ function tokenizeElement(element) {
     // Atomic: footnote references (preserve as-is and allow reordering)
     if (isFootnoteReferenceElement(el)) {
       const id = nextId('ref');
-      tokenMap[id] = { kind: 'atomic', clone: el.cloneNode(true) };
+      tokenMap[id] = { kind: 'atomic', clone: deepCloneAndSanitize(el) };
       out.push(makeToken(id, false));
       return;
     }
@@ -235,7 +332,10 @@ function renderToNode(targetNode, tokenized, output) {
     }
   }
 
-  targetNode.innerHTML = '';
+  // Issue 39: Use DOM API instead of innerHTML for XSS safety
+  while (targetNode.firstChild) {
+    targetNode.removeChild(targetNode.firstChild);
+  }
   targetNode.appendChild(frag);
   return true;
 }

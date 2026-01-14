@@ -3,6 +3,9 @@
   "name": "Immersive Translate Clone",
   "version": "1.0.0",
   "description": "A clone of Immersive Translate with local LLM support and PDF translation.",
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; style-src 'self' 'unsafe-inline'"
+  },
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
