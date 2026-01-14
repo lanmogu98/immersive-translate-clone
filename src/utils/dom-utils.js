@@ -100,6 +100,26 @@ class DOMUtils {
                 continue;
             }
 
+            // Issue 38 Case #2: Handle <br><br> separated paragraphs
+            // Only applies when element has NO translatable descendants (checked above)
+            // This splits a single element (e.g., <p>) into multiple translation units
+            if (this.hasBrBrSeparator(element)) {
+                const wrappedSpans = this.wrapBrBrParagraphs(element, descendantMinLen);
+
+                for (const span of wrappedSpans) {
+                    const spanText = span.textContent.trim();
+                    const spanMinLen = this.isInMainContent(span) ? Math.min(MAIN_MIN_LEN, descendantMinLen) : descendantMinLen;
+                    if (spanText.length >= spanMinLen && !/^\d+$/.test(spanText)) {
+                        // Inherit visibility from parent in test environment
+                        if (span.offsetParent === null && element.offsetParent !== null) {
+                            // jsdom doesn't compute offsetParent for dynamically created elements
+                        }
+                        elements.push({ element: span, text: spanText });
+                    }
+                }
+                continue; // Skip the container itself
+            }
+
             // Normal case: no translatable descendants, use full text content
             let rawText = (typeof element.innerText === 'string' ? element.innerText : element.textContent || '').trim();
             if (!rawText) continue;
@@ -281,6 +301,106 @@ class DOMUtils {
             textNode.parentNode.insertBefore(span, textNode);
             span.appendChild(textNode);
             wrappers.push(span);
+        }
+
+        return wrappers;
+    }
+
+    /**
+     * Issue 38 Case #2: Check if element contains <br><br> as paragraph separator
+     * @param {Element} element - The element to check
+     * @returns {boolean} True if element contains consecutive <br> elements
+     */
+    static hasBrBrSeparator(element) {
+        if (!element) return false;
+
+        const brElements = element.querySelectorAll('br');
+        for (const br of brElements) {
+            // Check if next sibling is another br (ignoring whitespace text nodes)
+            let sibling = br.nextSibling;
+            while (sibling && sibling.nodeType === Node.TEXT_NODE && !sibling.textContent.trim()) {
+                sibling = sibling.nextSibling;
+            }
+            if (sibling && sibling.tagName === 'BR') {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Issue 38 Case #2: Wrap text segments separated by <br><br> in spans
+     * Each logical paragraph (separated by <br><br>) gets wrapped for independent translation
+     * @param {Element} element - The element containing <br><br> separated paragraphs
+     * @param {number} [minLen=3] - Minimum text length threshold for wrapping
+     * @returns {HTMLSpanElement[]} Array of wrapper spans for each logical paragraph
+     */
+    static wrapBrBrParagraphs(element, minLen = 3) {
+        const wrappers = [];
+        if (!element) return wrappers;
+
+        // Collect all child nodes and group them by <br><br> separators
+        const children = Array.from(element.childNodes);
+        const segments = []; // Array of arrays of nodes
+        let currentSegment = [];
+
+        for (let i = 0; i < children.length; i++) {
+            const node = children[i];
+
+            // Check if this is the start of a <br><br> separator
+            if (node.tagName === 'BR') {
+                // Look ahead to see if next non-whitespace node is also <br>
+                let nextIndex = i + 1;
+                while (nextIndex < children.length &&
+                       children[nextIndex].nodeType === Node.TEXT_NODE &&
+                       !children[nextIndex].textContent.trim()) {
+                    nextIndex++;
+                }
+
+                if (nextIndex < children.length && children[nextIndex].tagName === 'BR') {
+                    // Found <br><br> - save current segment and skip both <br>s
+                    if (currentSegment.length > 0) {
+                        segments.push(currentSegment);
+                        currentSegment = [];
+                    }
+                    i = nextIndex; // Skip to after the second <br>
+                    continue;
+                }
+            }
+
+            currentSegment.push(node);
+        }
+
+        // Don't forget the last segment
+        if (currentSegment.length > 0) {
+            segments.push(currentSegment);
+        }
+
+        // Now wrap each segment in a span
+        for (const segment of segments) {
+            // Calculate text content of segment
+            const segmentText = segment
+                .map(n => n.textContent || '')
+                .join('')
+                .trim();
+
+            // Only wrap if meets minimum length
+            if (segmentText.length >= minLen && !/^\d+$/.test(segmentText)) {
+                // Create wrapper span
+                const span = document.createElement('span');
+                span.className = 'immersive-translate-text-wrapper';
+
+                // Insert span before the first node in segment
+                const firstNode = segment[0];
+                firstNode.parentNode.insertBefore(span, firstNode);
+
+                // Move all segment nodes into the span
+                for (const node of segment) {
+                    span.appendChild(node);
+                }
+
+                wrappers.push(span);
+            }
         }
 
         return wrappers;

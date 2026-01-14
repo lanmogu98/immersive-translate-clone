@@ -100,24 +100,47 @@ describe('DOM Layout Issues (Issue 38)', () => {
       makeAllVisible('p');
     });
 
-    // 当前行为测试（记录现状）
-    test('current behavior: p is selected as single unit', () => {
-      const elements = DOMUtils.getTranslatableElements();
+    test('fixture should contain p with br elements', () => {
       const p = document.querySelector('p');
+      expect(p).not.toBeNull();
 
-      expect(p).not.toBeNull(); // 确保 fixture 加载正确
-
-      const found = elements.find(e => e.element === p);
-      expect(found).toBeDefined();
-      // 目前整个 p 作为一个单元，这是需要改进的行为
+      const brElements = p.querySelectorAll('br');
+      expect(brElements.length).toBeGreaterThanOrEqual(2); // 至少有 <br><br>
     });
 
-    // 此功能尚未实现，使用 test.todo 标记
-    test.todo('should detect <br><br> as paragraph separator');
+    test('should detect <br><br> as paragraph separator', () => {
+      const p = document.querySelector('p');
 
-    test.todo('should split p with <br><br> into multiple translation units');
+      // 检测是否有连续的 <br> 元素
+      const hasBrBr = DOMUtils.hasBrBrSeparator(p);
+      expect(hasBrBr).toBe(true);
+    });
 
-    test.todo('should insert translation after each logical paragraph, not at end');
+    test('should split p with <br><br> into multiple translation units', () => {
+      const elements = DOMUtils.getTranslatableElements();
+
+      // 应该返回 2 个翻译单元（两个逻辑段落）
+      // 而不是 1 个（整个 p）
+      expect(elements.length).toBe(2);
+
+      // 每个单元应该只包含一个逻辑段落的文本
+      const texts = elements.map(e => e.text);
+      expect(texts[0]).toContain('Claude automatically invokes');
+      expect(texts[0]).not.toContain('Creating skills');
+      expect(texts[1]).toContain('Creating skills');
+      expect(texts[1]).not.toContain('Claude automatically invokes');
+    });
+
+    test('wrapped spans should be in correct positions (before <br><br>)', () => {
+      const elements = DOMUtils.getTranslatableElements();
+
+      // 第一个翻译单元应该在 <br><br> 之前
+      // 第二个翻译单元应该在 <br><br> 之后
+      const p = document.querySelector('p');
+      const wrappers = p.querySelectorAll('.immersive-translate-text-wrapper');
+
+      expect(wrappers.length).toBe(2);
+    });
   });
 
   // ============================================================
