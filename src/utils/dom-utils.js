@@ -35,6 +35,11 @@ class DOMUtils {
             if (element.classList.contains('immersive-translate-target')) continue;
             if (element.closest('.immersive-translate-target')) continue;
 
+            // Issue 38 Case #1: Skip aria-hidden elements (used for screen reader accessibility)
+            // These elements are visually hidden or decorative, not meant to be translated separately
+            if (element.getAttribute('aria-hidden') === 'true') continue;
+            if (element.closest('[aria-hidden="true"]')) continue;
+
             // User-defined selector exclusions
             if (excludedSelectors.length > 0 && this.isExcludedBySelector(element, excludedSelectors)) {
                 continue;
@@ -93,6 +98,26 @@ class DOMUtils {
 
                 // Skip the container itself - children will be translated separately
                 continue;
+            }
+
+            // Issue 38 Case #2: Handle <br><br> separated paragraphs
+            // Only applies when element has NO translatable descendants (checked above)
+            // This splits a single element (e.g., <p>) into multiple translation units
+            if (this.hasBrBrSeparator(element)) {
+                const wrappedSpans = this.wrapBrBrParagraphs(element, descendantMinLen);
+
+                for (const span of wrappedSpans) {
+                    const spanText = span.textContent.trim();
+                    const spanMinLen = this.isInMainContent(span) ? Math.min(MAIN_MIN_LEN, descendantMinLen) : descendantMinLen;
+                    if (spanText.length >= spanMinLen && !/^\d+$/.test(spanText)) {
+                        // Inherit visibility from parent in test environment
+                        if (span.offsetParent === null && element.offsetParent !== null) {
+                            // jsdom doesn't compute offsetParent for dynamically created elements
+                        }
+                        elements.push({ element: span, text: spanText });
+                    }
+                }
+                continue; // Skip the container itself
             }
 
             // Normal case: no translatable descendants, use full text content
@@ -336,6 +361,106 @@ class DOMUtils {
     }
 
     /**
+     * Issue 38 Case #2: Check if element contains <br><br> as paragraph separator
+     * @param {Element} element - The element to check
+     * @returns {boolean} True if element contains consecutive <br> elements
+     */
+    static hasBrBrSeparator(element) {
+        if (!element) return false;
+
+        const brElements = element.querySelectorAll('br');
+        for (const br of brElements) {
+            // Check if next sibling is another br (ignoring whitespace text nodes)
+            let sibling = br.nextSibling;
+            while (sibling && sibling.nodeType === Node.TEXT_NODE && !sibling.textContent.trim()) {
+                sibling = sibling.nextSibling;
+            }
+            if (sibling && sibling.tagName === 'BR') {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Issue 38 Case #2: Wrap text segments separated by <br><br> in spans
+     * Each logical paragraph (separated by <br><br>) gets wrapped for independent translation
+     * @param {Element} element - The element containing <br><br> separated paragraphs
+     * @param {number} [minLen=3] - Minimum text length threshold for wrapping
+     * @returns {HTMLSpanElement[]} Array of wrapper spans for each logical paragraph
+     */
+    static wrapBrBrParagraphs(element, minLen = 3) {
+        const wrappers = [];
+        if (!element) return wrappers;
+
+        // Collect all child nodes and group them by <br><br> separators
+        const children = Array.from(element.childNodes);
+        const segments = []; // Array of arrays of nodes
+        let currentSegment = [];
+
+        for (let i = 0; i < children.length; i++) {
+            const node = children[i];
+
+            // Check if this is the start of a <br><br> separator
+            if (node.tagName === 'BR') {
+                // Look ahead to see if next non-whitespace node is also <br>
+                let nextIndex = i + 1;
+                while (nextIndex < children.length &&
+                       children[nextIndex].nodeType === Node.TEXT_NODE &&
+                       !children[nextIndex].textContent.trim()) {
+                    nextIndex++;
+                }
+
+                if (nextIndex < children.length && children[nextIndex].tagName === 'BR') {
+                    // Found <br><br> - save current segment and skip both <br>s
+                    if (currentSegment.length > 0) {
+                        segments.push(currentSegment);
+                        currentSegment = [];
+                    }
+                    i = nextIndex; // Skip to after the second <br>
+                    continue;
+                }
+            }
+
+            currentSegment.push(node);
+        }
+
+        // Don't forget the last segment
+        if (currentSegment.length > 0) {
+            segments.push(currentSegment);
+        }
+
+        // Now wrap each segment in a span
+        for (const segment of segments) {
+            // Calculate text content of segment
+            const segmentText = segment
+                .map(n => n.textContent || '')
+                .join('')
+                .trim();
+
+            // Only wrap if meets minimum length
+            if (segmentText.length >= minLen && !/^\d+$/.test(segmentText)) {
+                // Create wrapper span
+                const span = document.createElement('span');
+                span.className = 'immersive-translate-text-wrapper';
+
+                // Insert span before the first node in segment
+                const firstNode = segment[0];
+                firstNode.parentNode.insertBefore(span, firstNode);
+
+                // Move all segment nodes into the span
+                for (const node of segment) {
+                    span.appendChild(node);
+                }
+
+                wrappers.push(span);
+            }
+        }
+
+        return wrappers;
+    }
+
+    /**
      * Issue 29: Check if element contains translatable descendant elements
      * Returns true if the element has child elements that would be selected for translation
      * This prevents parent containers from being translated when their children will be
@@ -376,23 +501,13 @@ class DOMUtils {
         const node = document.createElement('span'); // Use SPAN to be valid inside P and H tags
         node.className = 'immersive-translate-target';
 
-        // Copy font styles AND alignment from the original element
-        const style = window.getComputedStyle(element);
-        node.style.fontSize = style.fontSize;
-        node.style.fontWeight = style.fontWeight;
-        // We don't copy font-family directly as 'inherit' in CSS usually works better if we use standard tags,
-        // but copying ensures we get custom webfonts
-        node.style.fontFamily = style.fontFamily;
-        node.style.color = style.color;
-        node.style.textAlign = style.textAlign; // Critical for headers
-        node.style.lineHeight = style.lineHeight;
-
-        // Reset spacing for the inner span to avoid double margins
-        node.style.margin = '0';
-        node.style.padding = '0';
-
-        // Add a small top margin for separation, but handle it in CSS
-        // node.style.display = 'block'; // Defined in CSS
+        // Issue 38 Case #3: Do NOT set inline styles
+        // Let CSS classes handle styling for consistency and maintainability
+        // The .immersive-translate-target class in content.css provides:
+        // - display: block for line separation
+        // - margin-top for spacing
+        // - font-family: inherit to match parent
+        // - opacity for visual distinction
 
         // Loading State - Issue 39: Use DOM API instead of innerHTML for XSS safety
         const loadingSpan = document.createElement('span');

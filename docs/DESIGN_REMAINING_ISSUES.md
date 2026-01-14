@@ -333,6 +333,361 @@ Phase 5: UI 重构
 | `tests/exclusion.test.js` | Issue 14 域名匹配 |
 | `tests/options-defaults.test.js` | Issue 9 |
 | `tests/manifest.test.js` | Issue 15 |
+| `tests/dom-layout.test.js` | Issue 38（DOM Layout 测试） |
+
+---
+
+## 🧪 Issue 38: DOM Layout Test System（中英段落排布测试系统）
+
+### 背景
+
+插件在中英段落的正确排布上面临挑战，包括：
+- 重复翻译（同一内容被翻译多次）
+- 错误拆分（一个整体被拆成多个翻译单元）
+- 嵌套错误（翻译插入到错误的 DOM 位置）
+
+本 Issue 旨在建立系统化的测试方案，捕获并防止这些问题。
+
+### 问题案例清单
+
+| # | 问题类型 | 触发条件 | 错误表现 | Fixture | 状态 |
+|---|----------|----------|----------|---------|------|
+| 1 | 重复翻译 + 错误拆分 | `<h1>` 内嵌套多个 `<div class="word">` | 每个 word 被单独翻译 + 整体再次翻译（4次输出） | `case-001-word-divs.html` | 待修复 |
+| 2 | 段落错位 / 合并翻译 | `<p>` 内含多个 `<br><br>` 分隔的逻辑段落 | 多段译文合并放在 `<p>` 末尾，与原文位置不对应 | `case-002-br-paragraphs.html` | 待修复 |
+| 3 | 全局样式问题 | 所有翻译输出 | 字体/字号不一致、原文译文间距过小、中文字体待优化 | `case-003-translation-style.html` | 待修复 |
+
+---
+
+### 案例 #1: Word Divs 重复翻译
+
+| 项目 | 内容 |
+|------|------|
+| **问题类型** | 重复翻译 + 错误拆分 |
+| **来源页面** | Anthropic 官网（Agent Skills 介绍页） |
+| **错误表现** | 1. `<h1>` 内的 3 个 `<div class="word">` 被分别翻译<br>2. `<h1>` 整体又被翻译一次<br>3. 导致出现 4 个翻译片段（"介绍" + "智能体" + "技能" + "介绍智能体技能"） |
+| **触发条件** | 块级元素（`<h1>`）内部嵌套多个 `<div>` 子元素，每个子元素包含一个单词 |
+
+**错误输出 HTML：**
+```html
+<h1 class="u-text-style-h1" aria-label="Introducing Agent Skills">
+  <div class="word" aria-hidden="true">Introducing
+    <span class="immersive-translate-target">介绍</span>  <!-- ❌ 不应翻译 -->
+  </div>
+  <div class="word" aria-hidden="true">Agent
+    <span class="immersive-translate-target">智能体</span>  <!-- ❌ 不应翻译 -->
+  </div>
+  <div class="word" aria-hidden="true">Skills
+    <span class="immersive-translate-target">技能</span>  <!-- ❌ 不应翻译 -->
+  </div>
+  <span class="immersive-translate-target">介绍智能体技能</span>  <!-- ❌ 重复 -->
+</h1>
+```
+
+**期望输出 HTML（参考沉浸式翻译）：**
+```html
+<h1 class="u-text-style-h1" aria-label="Introducing Agent Skills">
+  <div class="word" aria-hidden="true">Introducing</div>
+  <div class="word" aria-hidden="true">Agent</div>
+  <div class="word" aria-hidden="true">Skills</div>
+  <font class="notranslate immersive-translate-target-wrapper" lang="zh-CN">
+    <font class="notranslate">&nbsp;&nbsp;</font>
+    <font class="notranslate immersive-translate-target-inner">Agent Skills 正式上线</font>
+  </font>
+</h1>
+```
+
+**问题根源分析：**
+```
+当前行为:
+h1 ─────────────────────────────────────┐
+├── div.word "Introducing" → 被翻译 ❌   │ 每个子元素被当作
+├── div.word "Agent"       → 被翻译 ❌   │ 独立翻译单元
+├── div.word "Skills"      → 被翻译 ❌   │
+└── h1 整体               → 被翻译 ❌   ← 父元素也被翻译（重复）
+
+期望行为:
+h1 ─────────────────────────────────────┐
+├── div.word "Introducing" → 跳过       │ 子元素不翻译
+├── div.word "Agent"       → 跳过       │ （属于父元素的一部分）
+├── div.word "Skills"      → 跳过       │
+└── h1 整体               → 翻译一次 ✓ ← 只在父级翻译
+```
+
+**修复方向：**
+1. `getTranslatableElements()` 应识别"包含多个仅含单词的 div 子元素"的父容器
+2. 只翻译父容器，跳过子元素
+3. 或：检测 `aria-hidden="true"` 的元素，不单独翻译
+
+**测试断言：**
+```javascript
+// tests/dom-layout.test.js
+describe('Case #1: Word Divs', () => {
+  it('should NOT translate individual word divs inside h1', () => {
+    // Setup: h1 with multiple div.word children
+    // Assert: only h1 is in translatable elements, not the divs
+  });
+
+  it('should translate h1 only once', () => {
+    // Assert: translation appears once, not 4 times
+  });
+});
+```
+
+---
+
+### 案例 #2: BR 段落合并翻译
+
+| 项目 | 内容 |
+|------|------|
+| **问题类型** | 段落错位 / 合并翻译 |
+| **来源页面** | Anthropic 官网（Agent Skills 介绍页） |
+| **错误表现** | 1. 单个 `<p>` 内含两个用 `<br><br>` 分隔的逻辑段落<br>2. 整个 `<p>` 被当作一个翻译单元<br>3. 合并的译文放在 `<p>` 末尾，与原文段落位置不对应 |
+| **触发条件** | `<p>` 元素内包含 `<br><br>` 分隔的多个逻辑段落 |
+
+**错误输出 HTML：**
+```html
+<p>
+  Claude automatically invokes relevant skills based on your task—no manual selection needed. You'll even see skills in Claude's chain of thought as it works.
+  <br><br>
+  Creating skills is simple. The "skill-creator" skill provides interactive guidance: Claude asks about your workflow, generates the folder structure, formats the SKILL.md file, and bundles the resources you need. No manual file editing required.
+  <span class="immersive-translate-target">
+    Claude会根据您的任务自动调用相关技能——无需手动选择。您甚至能在Claude的思考链路中看到技能调用过程。创建技能非常简单："技能创建器"技能提供交互式指导：Claude会询问您的工作流程，生成文件夹结构，格式化SKILL.md文件，并打包所需资源。无需手动编辑文件。
+  </span>  <!-- ❌ 合并译文放在末尾 -->
+</p>
+```
+
+**期望输出 HTML（参考沉浸式翻译）：**
+```html
+<p>
+  Claude automatically invokes relevant skills based on your task—no manual selection needed. You'll even see skills in Claude's chain of thought as it works.
+  <font class="immersive-translate-target-wrapper">
+    <br>
+    <font class="immersive-translate-target-inner">Claude 会根据您的任务自动调用相关技能——无需手动选择。您甚至能在 Claude 的思考过程中看到它使用的技能。</font>
+  </font>  <!-- ✓ 译文1紧跟原文1 -->
+  <br><br>
+  Creating skills is simple. The "skill-creator" skill provides interactive guidance: Claude asks about your workflow, generates the folder structure, formats the SKILL.md file, and bundles the resources you need. No manual file editing required.
+  <font class="immersive-translate-target-wrapper">
+    <br>
+    <font class="immersive-translate-target-inner">创建技能非常简单。"skill-creator"技能提供交互式引导：Claude 会询问您的工作流程，自动生成文件夹结构、格式化 SKILL.md 文件，并打包所需资源。整个过程无需手动编辑文件。</font>
+  </font>  <!-- ✓ 译文2紧跟原文2 -->
+</p>
+```
+
+**问题根源分析：**
+```
+当前行为:
+<p> ─────────────────────────────────────────┐
+│ 原文段落1                                   │
+│ <br><br>                                   │ 整个 <p> 作为一个
+│ 原文段落2                                   │ 翻译单元
+│ <span>译文1+译文2（合并）</span>             │ ← 译文放在末尾
+└─────────────────────────────────────────────┘
+
+期望行为:
+<p> ─────────────────────────────────────────┐
+│ 原文段落1                                   │
+│ <font>译文1</font>                         │ ← 紧跟段落1
+│ <br><br>                                   │
+│ 原文段落2                                   │
+│ <font>译文2</font>                         │ ← 紧跟段落2
+└─────────────────────────────────────────────┘
+```
+
+**修复方向：**
+1. 在扫描阶段识别 `<br><br>` 作为段落分隔符
+2. 将包含 `<br><br>` 的 `<p>` 拆分为多个逻辑翻译单元
+3. 或：在翻译结果插入时，根据 `<br><br>` 位置分段插入译文
+4. 需要 LLM 返回分段翻译结果（用 `%%` 分隔符对应每个逻辑段落）
+
+**测试断言：**
+```javascript
+// tests/dom-layout.test.js
+describe('Case #2: BR Paragraphs', () => {
+  it('should split p with <br><br> into multiple translation units', () => {
+    // Setup: p with two paragraphs separated by <br><br>
+    // Assert: two translation spans inserted, each after its source paragraph
+  });
+
+  it('should NOT merge translations at the end of p', () => {
+    // Assert: no single translation span containing both translations
+  });
+});
+```
+
+---
+
+### 案例 #3: 全局样式问题
+
+| 项目 | 内容 |
+|------|------|
+| **问题类型** | 全局样式问题 |
+| **来源页面** | 所有页面（以 Anthropic 官网为例） |
+| **错误表现** | 1. 西文字体与原文不一致<br>2. 字号与原文不一致（可能是 font-weight 问题）<br>3. 中文字体样式待改进（建议思源宋体）<br>4. 原文-译文之间间距过小，排布难看 |
+| **触发条件** | 所有翻译输出 |
+
+**错误输出 HTML：**
+```html
+<h3>
+  <strong>Claude Developer Platform (API)</strong>
+  <span class="immersive-translate-target" style="font-size: 32px; font-weight: 400; font-family: 'Anthropic Serif', Georgia, sans-serif; ...">
+    <strong>Claude开发者平台（API）</strong>
+  </span>
+  <!-- ❌ 问题：
+    1. 内联 style 覆盖了原文样式
+    2. 无换行，译文紧贴原文
+    3. 中文使用了西文 serif 字体
+  -->
+</h3>
+```
+
+**期望输出 HTML（参考沉浸式翻译）：**
+```html
+<h3>
+  <strong>
+    Claude Developer Platform (API)
+    <font class="notranslate immersive-translate-target-wrapper" lang="zh-CN">
+      <br>  <!-- ✓ 换行增加间距 -->
+      <font class="immersive-translate-target-inner">
+        Claude 开发者平台（API）
+      </font>
+    </font>
+  </strong>
+</h3>
+<!-- ✓ 优点：
+  1. 使用 CSS class 控制样式，不用内联 style
+  2. <br> 换行，原文译文视觉分离
+  3. 译文在 <strong> 内部，继承父元素样式
+-->
+```
+
+**问题根源分析：**
+```
+当前行为:
+<h3><strong>原文</strong><span style="...">译文</span></h3>
+                        ↑
+                        ├─ 内联 style 可能覆盖/冲突
+                        ├─ 无换行，紧贴原文
+                        └─ 在 <strong> 外部，样式继承断裂
+
+期望行为:
+<h3><strong>原文<font class="..."><br>译文</font></strong></h3>
+                                   ↑
+                                   ├─ CSS class 控制样式
+                                   ├─ <br> 换行，视觉分离
+                                   └─ 在 <strong> 内部，继承粗体
+```
+
+**修复方向：**
+
+1. **译文插入位置调整**：
+   - 当前：在父元素末尾 appendChild
+   - 改进：在原文文本节点之后插入（保持在同一个 inline 容器内）
+
+2. **添加换行**：
+   - 在译文前插入 `<br>` 元素
+   - 或使用 CSS `display: block` 让译文换行
+
+3. **样式控制改为 CSS class**：
+   ```css
+   /* content.css */
+   .immersive-translate-target {
+     display: block;           /* 换行显示 */
+     margin-top: 0.25em;       /* 与原文间距 */
+     font-family: "Source Han Serif SC", "Noto Serif SC", serif;  /* 中文字体 */
+   }
+   ```
+
+4. **移除内联 style**：
+   - 不再设置 `font-size`, `font-family` 等内联样式
+   - 让译文继承父元素样式
+
+**测试断言：**
+```javascript
+// tests/dom-layout.test.js
+describe('Case #3: Translation Style', () => {
+  it('should NOT use inline styles for translation span', () => {
+    // Assert: translation span has no inline style attribute
+    // or style attribute is minimal (only essential styles)
+  });
+
+  it('should insert line break before translation', () => {
+    // Assert: <br> exists before translation span
+    // or translation span has display:block
+  });
+
+  it('should insert translation inside inline containers', () => {
+    // Setup: <h3><strong>text</strong></h3>
+    // Assert: translation is inside <strong>, not after it
+  });
+});
+```
+
+**CSS 设计建议：**
+```css
+/* src/content.css (新建) */
+.immersive-translate-target-wrapper {
+  display: block;
+  margin-top: 0.3em;
+}
+
+.immersive-translate-target-inner {
+  /* 继承父元素的 font-size, font-weight 等 */
+  /* 仅指定中文字体 fallback */
+  font-family: inherit, "Source Han Serif SC", "Noto Serif SC",
+               "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+/* 针对不同场景的样式微调 */
+h1 .immersive-translate-target-wrapper,
+h2 .immersive-translate-target-wrapper,
+h3 .immersive-translate-target-wrapper {
+  margin-top: 0.2em;  /* 标题间距稍小 */
+}
+
+p .immersive-translate-target-wrapper {
+  margin-top: 0.5em;  /* 段落间距稍大 */
+}
+```
+
+---
+
+### 测试网页 Fixtures（待手动保存）
+
+为了更全面地测试翻译功能，需要从以下网页手动保存 HTML 作为测试 fixture。
+
+**保存路径设计：**
+```
+tests/fixtures/
+├── dom-layout/                      # 已有：精简的问题案例
+│   ├── case-001-word-divs.html
+│   ├── case-002-br-paragraphs.html
+│   └── case-003-translation-style.html
+│
+└── real-pages/                      # 新增：真实网页完整 HTML
+    ├── README.md                    # 说明文档
+    ├── anthropic-blog-skills.html   # claude.ai/blog/skills
+    ├── wikipedia-sutton.html        # en.wikipedia.org/wiki/Richard_S._Sutton
+    └── stanford-cs234.html          # web.stanford.edu/class/cs234/
+```
+
+**网页清单：**
+
+| 文件名 | 源 URL | 测试场景 |
+|--------|--------|----------|
+| `anthropic-blog-skills.html` | https://claude.ai/blog/skills | 案例 #1, #2, #3 的真实来源；word divs、br 段落 |
+| `wikipedia-sutton.html` | https://en.wikipedia.org/wiki/Richard_S._Sutton | 脚注引用、信息框、超链接密集段落、表格 |
+| `stanford-cs234.html` | https://web.stanford.edu/class/cs234/ | 课程列表、bullet points、简单结构参照 |
+
+**保存方法：**
+1. 在浏览器中打开目标网页
+2. 右键 → "查看页面源代码" 或 Ctrl+U
+3. 全选复制，保存为对应文件名
+4. 或使用 DevTools → Elements → 右键 html 元素 → Copy → Copy outerHTML
+
+**注意事项：**
+- 保存原始 HTML，不要保存翻译后的版本
+- 如果网页有动态加载内容，等待加载完成后再保存
+- 保存时间戳记录在 README.md 中，以便追踪内容变化
 
 ---
 

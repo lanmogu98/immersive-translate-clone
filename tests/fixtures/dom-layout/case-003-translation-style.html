@@ -1,0 +1,22 @@
+<!--
+  Case #3: Translation Style - 全局样式问题
+
+  问题：
+  1. 西文字体与原文不一致
+  2. 字号与原文不一致
+  3. 中文字体样式待改进（建议思源宋体）
+  4. 原文-译文之间间距过小
+
+  触发条件：所有翻译输出
+  来源：Anthropic 官网
+
+  期望行为：
+  1. 使用 CSS class 控制样式，不用内联 style
+  2. 添加换行或间距分隔原文和译文
+  3. 译文继承父元素样式（在 inline 容器内部）
+-->
+<h3><strong>Claude Developer Platform (API)</strong></h3>
+
+<p>This is a sample paragraph with <strong>bold text</strong> and <em>italic text</em>.</p>
+
+<h2>Another Heading Example</h2>
