@@ -20,8 +20,10 @@
   text-align: inherit;
 
   /* Chinese font fallback stack for better CJK rendering */
-  font-family: inherit, "Source Han Serif SC", "Noto Serif SC",
-    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  /* Note: For Western text, browser uses parent's font; for CJK, falls back to these */
+  font-family: "Source Han Serif SC", "Noto Serif SC", "Source Han Sans SC",
+    "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+    system-ui, -apple-system, sans-serif;
 
   /* Visual separation without boxiness */
   border-top: 1px dashed rgba(0, 0, 0, 0.15);
