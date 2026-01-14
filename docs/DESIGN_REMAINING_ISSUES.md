@@ -651,6 +651,46 @@ p .immersive-translate-target-wrapper {
 
 ---
 
+### 测试网页 Fixtures（待手动保存）
+
+为了更全面地测试翻译功能，需要从以下网页手动保存 HTML 作为测试 fixture。
+
+**保存路径设计：**
+```
+tests/fixtures/
+├── dom-layout/                      # 已有：精简的问题案例
+│   ├── case-001-word-divs.html
+│   ├── case-002-br-paragraphs.html
+│   └── case-003-translation-style.html
+│
+└── real-pages/                      # 新增：真实网页完整 HTML
+    ├── README.md                    # 说明文档
+    ├── anthropic-blog-skills.html   # claude.ai/blog/skills
+    ├── wikipedia-sutton.html        # en.wikipedia.org/wiki/Richard_S._Sutton
+    └── stanford-cs234.html          # web.stanford.edu/class/cs234/
+```
+
+**网页清单：**
+
+| 文件名 | 源 URL | 测试场景 |
+|--------|--------|----------|
+| `anthropic-blog-skills.html` | https://claude.ai/blog/skills | 案例 #1, #2, #3 的真实来源；word divs、br 段落 |
+| `wikipedia-sutton.html` | https://en.wikipedia.org/wiki/Richard_S._Sutton | 脚注引用、信息框、超链接密集段落、表格 |
+| `stanford-cs234.html` | https://web.stanford.edu/class/cs234/ | 课程列表、bullet points、简单结构参照 |
+
+**保存方法：**
+1. 在浏览器中打开目标网页
+2. 右键 → "查看页面源代码" 或 Ctrl+U
+3. 全选复制，保存为对应文件名
+4. 或使用 DevTools → Elements → 右键 html 元素 → Copy → Copy outerHTML
+
+**注意事项：**
+- 保存原始 HTML，不要保存翻译后的版本
+- 如果网页有动态加载内容，等待加载完成后再保存
+- 保存时间戳记录在 README.md 中，以便追踪内容变化
+
+---
+
 ## 🧪 测试实现注意事项（落实到可执行断言）
 
 - **避免"假通过"**：不要使用 `expect(true).toBe(true)` 作为占位；未实现的测试用例统一使用 `test.todo(...)`（或 `test.skip(...)` 并注明原因），确保"通过"代表真的测到了行为。
