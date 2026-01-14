@@ -35,5 +35,5 @@ document.body.innerHTML = html;
 
 ## 相关文档
 
-- 详细设计：`docs/DESIGN_REMAINING_ISSUES.md` → Issue 38
-- 任务追踪：`FUTURE_ROADMAP.md` → ID 38
+- 详细设计：`docs/DESIGN_REMAINING_ISSUES.md` → Issue 46
+- 任务追踪：`FUTURE_ROADMAP.md` → ID 46

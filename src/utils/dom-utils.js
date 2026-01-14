@@ -35,7 +35,7 @@ class DOMUtils {
             if (element.classList.contains('immersive-translate-target')) continue;
             if (element.closest('.immersive-translate-target')) continue;
 
-            // Issue 38 Case #1: Skip aria-hidden elements (used for screen reader accessibility)
+            // Issue 46 Case #1: Skip aria-hidden elements (used for screen reader accessibility)
             // These elements are visually hidden or decorative, not meant to be translated separately
             if (element.getAttribute('aria-hidden') === 'true') continue;
             if (element.closest('[aria-hidden="true"]')) continue;
@@ -100,7 +100,7 @@ class DOMUtils {
                 continue;
             }
 
-            // Issue 38 Case #2: Handle <br><br> separated paragraphs
+            // Issue 46 Case #2: Handle <br><br> separated paragraphs
             // Only applies when element has NO translatable descendants (checked above)
             // This splits a single element (e.g., <p>) into multiple translation units
             if (this.hasBrBrSeparator(element)) {
@@ -361,7 +361,7 @@ class DOMUtils {
     }
 
     /**
-     * Issue 38 Case #2: Check if element contains <br><br> as paragraph separator
+     * Issue 46 Case #2: Check if element contains <br><br> as paragraph separator
      * @param {Element} element - The element to check
      * @returns {boolean} True if element contains consecutive <br> elements
      */
@@ -383,7 +383,7 @@ class DOMUtils {
     }
 
     /**
-     * Issue 38 Case #2: Wrap text segments separated by <br><br> in spans
+     * Issue 46 Case #2: Wrap text segments separated by <br><br> in spans
      * Each logical paragraph (separated by <br><br>) gets wrapped for independent translation
      * @param {Element} element - The element containing <br><br> separated paragraphs
      * @param {number} [minLen=3] - Minimum text length threshold for wrapping
@@ -501,7 +501,7 @@ class DOMUtils {
         const node = document.createElement('span'); // Use SPAN to be valid inside P and H tags
         node.className = 'immersive-translate-target';
 
-        // Issue 38 Case #3: Do NOT set inline styles
+        // Issue 46 Case #3: Do NOT set inline styles
         // Let CSS classes handle styling for consistency and maintainability
         // The .immersive-translate-target class in content.css provides:
         // - display: block for line separation

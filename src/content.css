@@ -1,5 +1,5 @@
 /* Main container for the translated text */
-/* Issue 38 Case #3: Use CSS classes for styling, no inline styles */
+/* Issue 46 Case #3: Use CSS classes for styling, no inline styles */
 .immersive-translate-target {
   display: block;
   /* Force block behavior for the span - creates visual line break */

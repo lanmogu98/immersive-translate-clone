@@ -18,16 +18,13 @@ Open Translate 是一个轻量级的 Chrome 扩展，为网页提供“沉浸式
 > **注意**: 这是一个实验性项目，尚未上架 Chrome 应用商店。需要通过“开发者模式”安装。
 
 1. **获取代码**: 克隆或下载本仓库到本地。
-2. **生成配置 (必需)**: 本项目依赖自动生成的运行时配置，请确保安装依赖并构建：
-   ```bash
-   npm install
-   npm run build:config
-   ```
-3. **加载扩展**:
+2. **加载扩展**:
    - 打开 Chrome 浏览器，进入 `chrome://extensions`。
    - 打开右上角的 **开发者模式 (Developer mode)** 开关。
    - 点击左上角的 **加载已解压的扩展程序 (Load unpacked)**。
    - 选择本仓库的根目录（包含 `manifest.json` 的文件夹）。
+
+> 开发者说明：只有在你需要**修改 `llm_config.yml`（提供商/模型列表）**或运行测试时，才需要本地 Node/npm（例如运行 `npm test` / `npm run build:config`）。
 
 ## 配置 (Config)
 

@@ -1,5 +1,5 @@
 /**
- * DOM Layout Tests (Issue 38)
+ * DOM Layout Tests (Issue 46)
  *
  * 测试中英段落排布问题，包括：
  * - Case #1: Word Divs 重复翻译
@@ -38,7 +38,7 @@ function makeAllVisible(selector) {
   document.querySelectorAll(selector).forEach(el => makeVisible(el));
 }
 
-describe('DOM Layout Issues (Issue 38)', () => {
+describe('DOM Layout Issues (Issue 46)', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
   });
@@ -185,7 +185,7 @@ describe('DOM Layout Issues (Issue 38)', () => {
       expect(node.textContent).not.toContain('Thinking...');
     });
 
-    // Issue 38 Case #3: Translation span should NOT have inline styles
+    // Issue 46 Case #3: Translation span should NOT have inline styles
     test('should NOT use inline styles for translation span', () => {
       const h3 = document.querySelector('h3');
       const node = DOMUtils.injectTranslationNode(h3);

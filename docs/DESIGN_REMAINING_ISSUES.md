@@ -333,11 +333,11 @@ Phase 5: UI 重构
 | `tests/exclusion.test.js` | Issue 14 域名匹配 |
 | `tests/options-defaults.test.js` | Issue 9 |
 | `tests/manifest.test.js` | Issue 15 |
-| `tests/dom-layout.test.js` | Issue 38（DOM Layout 测试） |
+| `tests/dom-layout.test.js` | Issue 46（DOM Layout 测试） |
 
 ---
 
-## 🧪 Issue 38: DOM Layout Test System（中英段落排布测试系统）
+## 🧪 Issue 46: DOM Layout Test System（中英段落排布测试系统）
 
 ### 背景
 

@@ -9,4 +9,3 @@ icons/imagen-*.png
 
 # Generated config files (from llm_config.yml)
 llm_config.json
-src/utils/llm-config.generated.js
