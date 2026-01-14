@@ -1,0 +1,14 @@
+<!--
+  Case #1: Word Divs - 期望输出
+
+  翻译应该：
+  1. 只在 h1 级别插入一次翻译
+  2. 不在 div.word 内部插入任何翻译
+  3. 翻译内容作为整体出现在末尾
+-->
+<h1 class="u-text-style-h1" aria-label="Introducing Agent Skills">
+  <div class="word" aria-hidden="true" style="position: relative; display: inline-block;">Introducing</div>
+  <div class="word" aria-hidden="true" style="position: relative; display: inline-block;">Agent</div>
+  <div class="word" aria-hidden="true" style="position: relative; display: inline-block;">Skills</div>
+  <span class="immersive-translate-target">Agent Skills 正式上线</span>
+</h1>

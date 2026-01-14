@@ -1,0 +1,14 @@
+<!--
+  Case #1: Word Divs - 重复翻译 + 错误拆分
+
+  问题：h1 内嵌套多个 div.word 子元素，每个子元素包含一个单词
+  触发条件：块级元素内部嵌套多个 div 子元素
+  来源：Anthropic 官网 Agent Skills 介绍页
+
+  期望行为：只翻译 h1 整体，不翻译内部的 div.word 元素
+-->
+<h1 class="u-text-style-h1" aria-label="Introducing Agent Skills">
+  <div class="word" aria-hidden="true" style="position: relative; display: inline-block;">Introducing</div>
+  <div class="word" aria-hidden="true" style="position: relative; display: inline-block;">Agent</div>
+  <div class="word" aria-hidden="true" style="position: relative; display: inline-block;">Skills</div>
+</h1>

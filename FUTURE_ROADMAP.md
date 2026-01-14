@@ -25,6 +25,7 @@ This is the **high-signal entrypoint** for near-term work.
 | 13 | P3 | Translation caching | 🔲 Pending | — |
 | 35 | P3 | Refactor `getTranslatableElements` to pipeline pattern: split 95-line function into composable filter stages | 🔲 Pending | — |
 | 36 | P3 | Add Shadow DOM support: traverse shadow roots for Web Components (YouTube, GitHub Codespaces, etc.) | 🔲 Pending | — |
+| 38 | P1 | 优化测试系统：解决中英段落排布问题（DOM Layout Test System） | 🔄 In Progress | — |
 
 ### Recently Done
 

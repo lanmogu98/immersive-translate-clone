@@ -333,6 +333,103 @@ Phase 5: UI 重构
 | `tests/exclusion.test.js` | Issue 14 域名匹配 |
 | `tests/options-defaults.test.js` | Issue 9 |
 | `tests/manifest.test.js` | Issue 15 |
+| `tests/dom-layout.test.js` | Issue 38（DOM Layout 测试） |
+
+---
+
+## 🧪 Issue 38: DOM Layout Test System（中英段落排布测试系统）
+
+### 背景
+
+插件在中英段落的正确排布上面临挑战，包括：
+- 重复翻译（同一内容被翻译多次）
+- 错误拆分（一个整体被拆成多个翻译单元）
+- 嵌套错误（翻译插入到错误的 DOM 位置）
+
+本 Issue 旨在建立系统化的测试方案，捕获并防止这些问题。
+
+### 问题案例清单
+
+| # | 问题类型 | 触发条件 | 错误表现 | Fixture | 状态 |
+|---|----------|----------|----------|---------|------|
+| 1 | 重复翻译 + 错误拆分 | `<h1>` 内嵌套多个 `<div class="word">` | 每个 word 被单独翻译 + 整体再次翻译（4次输出） | `case-001-word-divs.html` | 待修复 |
+
+---
+
+### 案例 #1: Word Divs 重复翻译
+
+| 项目 | 内容 |
+|------|------|
+| **问题类型** | 重复翻译 + 错误拆分 |
+| **来源页面** | Anthropic 官网（Agent Skills 介绍页） |
+| **错误表现** | 1. `<h1>` 内的 3 个 `<div class="word">` 被分别翻译<br>2. `<h1>` 整体又被翻译一次<br>3. 导致出现 4 个翻译片段（"介绍" + "智能体" + "技能" + "介绍智能体技能"） |
+| **触发条件** | 块级元素（`<h1>`）内部嵌套多个 `<div>` 子元素，每个子元素包含一个单词 |
+
+**错误输出 HTML：**
+```html
+<h1 class="u-text-style-h1" aria-label="Introducing Agent Skills">
+  <div class="word" aria-hidden="true">Introducing
+    <span class="immersive-translate-target">介绍</span>  <!-- ❌ 不应翻译 -->
+  </div>
+  <div class="word" aria-hidden="true">Agent
+    <span class="immersive-translate-target">智能体</span>  <!-- ❌ 不应翻译 -->
+  </div>
+  <div class="word" aria-hidden="true">Skills
+    <span class="immersive-translate-target">技能</span>  <!-- ❌ 不应翻译 -->
+  </div>
+  <span class="immersive-translate-target">介绍智能体技能</span>  <!-- ❌ 重复 -->
+</h1>
+```
+
+**期望输出 HTML（参考沉浸式翻译）：**
+```html
+<h1 class="u-text-style-h1" aria-label="Introducing Agent Skills">
+  <div class="word" aria-hidden="true">Introducing</div>
+  <div class="word" aria-hidden="true">Agent</div>
+  <div class="word" aria-hidden="true">Skills</div>
+  <font class="notranslate immersive-translate-target-wrapper" lang="zh-CN">
+    <font class="notranslate">&nbsp;&nbsp;</font>
+    <font class="notranslate immersive-translate-target-inner">Agent Skills 正式上线</font>
+  </font>
+</h1>
+```
+
+**问题根源分析：**
+```
+当前行为:
+h1 ─────────────────────────────────────┐
+├── div.word "Introducing" → 被翻译 ❌   │ 每个子元素被当作
+├── div.word "Agent"       → 被翻译 ❌   │ 独立翻译单元
+├── div.word "Skills"      → 被翻译 ❌   │
+└── h1 整体               → 被翻译 ❌   ← 父元素也被翻译（重复）
+
+期望行为:
+h1 ─────────────────────────────────────┐
+├── div.word "Introducing" → 跳过       │ 子元素不翻译
+├── div.word "Agent"       → 跳过       │ （属于父元素的一部分）
+├── div.word "Skills"      → 跳过       │
+└── h1 整体               → 翻译一次 ✓ ← 只在父级翻译
+```
+
+**修复方向：**
+1. `getTranslatableElements()` 应识别"包含多个仅含单词的 div 子元素"的父容器
+2. 只翻译父容器，跳过子元素
+3. 或：检测 `aria-hidden="true"` 的元素，不单独翻译
+
+**测试断言：**
+```javascript
+// tests/dom-layout.test.js
+describe('Case #1: Word Divs', () => {
+  it('should NOT translate individual word divs inside h1', () => {
+    // Setup: h1 with multiple div.word children
+    // Assert: only h1 is in translatable elements, not the divs
+  });
+
+  it('should translate h1 only once', () => {
+    // Assert: translation appears once, not 4 times
+  });
+});
+```
 
 ---
 
