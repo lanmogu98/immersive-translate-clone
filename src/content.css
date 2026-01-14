@@ -1,25 +1,45 @@
 /* Main container for the translated text */
+/* Issue 38 Case #3: Use CSS classes for styling, no inline styles */
 .immersive-translate-target {
   display: block;
-  /* Force block behavior for the span */
-  margin-top: 8px;
-  /* Internal spacing */
-  margin-bottom: 2px;
+  /* Force block behavior for the span - creates visual line break */
+  margin-top: 0.5em;
+  /* Spacing between original and translation */
+  margin-bottom: 0.25em;
   color: inherit;
   /* Inherit color from parent */
   opacity: 0.85;
-  /* Slightly lighter to distinguish */
-  font-family: inherit;
-  /* Inherit font */
-  font-weight: normal;
-  line-height: normal;
-  /* text-align: left;  <-- Removed to support centered text */
+  /* Slightly lighter to distinguish from original */
+
+  /* Font inheritance - let translation match parent's font characteristics */
+  /* Inherit font-size, font-weight, font-style from parent element */
+  font-size: inherit;
+  font-weight: inherit;
+  font-style: inherit;
+  line-height: inherit;
+  text-align: inherit;
+
+  /* Chinese font fallback stack for better CJK rendering */
+  font-family: inherit, "Source Han Serif SC", "Noto Serif SC",
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+
   /* Visual separation without boxiness */
-  border-top: 1px dashed rgba(0, 0, 0, 0.1);
-  padding-top: 4px;
+  border-top: 1px dashed rgba(0, 0, 0, 0.15);
+  padding-top: 0.3em;
   background-color: transparent;
   width: 100%;
   box-sizing: border-box;
+}
+
+/* Tighter spacing for headings */
+h1 .immersive-translate-target,
+h2 .immersive-translate-target,
+h3 .immersive-translate-target,
+h4 .immersive-translate-target,
+h5 .immersive-translate-target,
+h6 .immersive-translate-target {
+  margin-top: 0.3em;
+  padding-top: 0.2em;
 }
 
 /* Dark mode adjustment (simple heuristic) */

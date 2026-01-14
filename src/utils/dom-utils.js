@@ -447,23 +447,13 @@ class DOMUtils {
         const node = document.createElement('span'); // Use SPAN to be valid inside P and H tags
         node.className = 'immersive-translate-target';
 
-        // Copy font styles AND alignment from the original element
-        const style = window.getComputedStyle(element);
-        node.style.fontSize = style.fontSize;
-        node.style.fontWeight = style.fontWeight;
-        // We don't copy font-family directly as 'inherit' in CSS usually works better if we use standard tags,
-        // but copying ensures we get custom webfonts
-        node.style.fontFamily = style.fontFamily;
-        node.style.color = style.color;
-        node.style.textAlign = style.textAlign; // Critical for headers
-        node.style.lineHeight = style.lineHeight;
-
-        // Reset spacing for the inner span to avoid double margins
-        node.style.margin = '0';
-        node.style.padding = '0';
-
-        // Add a small top margin for separation, but handle it in CSS
-        // node.style.display = 'block'; // Defined in CSS
+        // Issue 38 Case #3: Do NOT set inline styles
+        // Let CSS classes handle styling for consistency and maintainability
+        // The .immersive-translate-target class in content.css provides:
+        // - display: block for line separation
+        // - margin-top for spacing
+        // - font-family: inherit to match parent
+        // - opacity for visual distinction
 
         // Loading State
         node.innerHTML = '<span class="immersive-translate-loading">Thinking...</span>';
