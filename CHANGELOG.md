@@ -7,8 +7,10 @@ All notable changes to this project will be documented in this file.
 ### Security
 -   **Security Sprint Completed (Issues 38-44)**: Comprehensive security hardening across the extension:
     -   **Issue 38 (P0): XSS Protection - DOM Sanitization**: Added attribute whitelist and dangerous attribute removal for cloned DOM elements in rich text rendering. Blocks event handlers (`onclick`, etc.), dangerous URI attributes, and sanitizes `javascript:` URLs.
+        -   **Fix**: Also sanitize atomic (footnote) token clones by deep-sanitizing all descendants.
     -   **Issue 39 (P1): XSS Protection - innerHTML Removal**: Replaced all `innerHTML` assignments with safer DOM APIs (`textContent`, `appendChild`, `removeChild`) to prevent XSS injection vectors.
     -   **Issue 40 (P1): CSS Selector Validation**: Added `isValidCSSSelector()` validation to prevent ReDoS attacks and malicious selectors. Blocks deeply nested selectors, complex attribute patterns, and invalid syntax.
+        -   **Perf**: Cache selector validation results to avoid repeated `document.querySelector()` calls during scanning.
     -   **Issue 41 (P1): Batch Size Validation**: Added server-side validation for `batchSize` parameter (range 1-50) to prevent resource exhaustion attacks.
     -   **Issue 42 (P2): Error Message Sanitization**: API and network errors are now sanitized before display to prevent information leakage. Sensitive endpoint URLs and detailed error messages are logged only to console.
     -   **Issue 43 (P2): Content Security Policy**: Added CSP configuration in manifest.json (`script-src 'self'; object-src 'self'; style-src 'self' 'unsafe-inline'`) to prevent inline script injection.

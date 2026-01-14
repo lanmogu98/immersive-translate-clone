@@ -103,6 +103,22 @@ function sanitizeClonedElement(clone) {
   return clone;
 }
 
+/**
+ * Issue 38: Deep clone + sanitize all descendant elements.
+ * Needed for atomic token clones (e.g., footnote refs) which previously used cloneNode(true)
+ * without attribute sanitization.
+ * @param {Element} el
+ * @returns {Element}
+ */
+function deepCloneAndSanitize(el) {
+  const clone = el.cloneNode(true);
+  sanitizeClonedElement(clone);
+  if (clone.querySelectorAll) {
+    clone.querySelectorAll('*').forEach((child) => sanitizeClonedElement(child));
+  }
+  return clone;
+}
+
 function shallowClonePreservingAttrs(el) {
   const clone = el.cloneNode(false);
   // Issue 38: Sanitize the clone to remove dangerous attributes (event handlers, etc.)
@@ -137,7 +153,7 @@ function tokenizeElement(element) {
     // Atomic: footnote references (preserve as-is and allow reordering)
     if (isFootnoteReferenceElement(el)) {
       const id = nextId('ref');
-      tokenMap[id] = { kind: 'atomic', clone: el.cloneNode(true) };
+      tokenMap[id] = { kind: 'atomic', clone: deepCloneAndSanitize(el) };
       out.push(makeToken(id, false));
       return;
     }

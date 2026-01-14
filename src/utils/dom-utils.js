@@ -246,10 +246,19 @@ class DOMUtils {
         if (!selectors || !Array.isArray(selectors) || !element) return false;
         return selectors.some((sel) => {
             // Issue 40: Validate selector before use
-            if (!this.isValidCSSSelector(sel)) {
-                console.warn('Invalid or potentially dangerous CSS selector skipped:', sel);
-                return false;
+            // Cache results to avoid repeated document.querySelector() calls in scan loops.
+            // This keeps selector validation O(M) per scan rather than O(N*M) per element.
+            if (!this._cssSelectorSafetyCache) this._cssSelectorSafetyCache = new Map();
+            let isSafe = this._cssSelectorSafetyCache.get(sel);
+            if (isSafe === undefined) {
+                isSafe = this.isValidCSSSelector(sel);
+                this._cssSelectorSafetyCache.set(sel, isSafe);
+                // Cap cache size to avoid unbounded growth (user can paste large lists).
+                if (this._cssSelectorSafetyCache.size > 2000) {
+                    this._cssSelectorSafetyCache.clear();
+                }
             }
+            if (!isSafe) return false;
             try {
                 return element.matches(sel) || element.closest(sel) !== null;
             } catch (e) {
