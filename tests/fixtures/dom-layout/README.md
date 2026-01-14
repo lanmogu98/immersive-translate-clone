@@ -13,6 +13,7 @@
 |------|------|----------|------|
 | #1 | `case-001-word-divs.html` | 重复翻译 + 错误拆分 | 待修复 |
 | #2 | `case-002-br-paragraphs.html` | 段落错位 / 合并翻译 | 待修复 |
+| #3 | `case-003-translation-style.html` | 全局样式问题 | 待修复 |
 
 ## 使用方式
 

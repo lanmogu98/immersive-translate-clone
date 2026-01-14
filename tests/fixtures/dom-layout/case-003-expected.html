@@ -1,0 +1,34 @@
+<!--
+  Case #3: Translation Style - 期望输出
+
+  翻译应该：
+  1. 使用 CSS class 控制样式（无内联 style）
+  2. 在译文前添加 <br> 换行
+  3. 译文插入在 inline 容器内部（继承 strong/em 等样式）
+  4. 中文字体通过 CSS 指定合适的 fallback
+-->
+<h3>
+  <strong>
+    Claude Developer Platform (API)
+    <span class="immersive-translate-target-wrapper">
+      <br>
+      <span class="immersive-translate-target-inner">Claude 开发者平台（API）</span>
+    </span>
+  </strong>
+</h3>
+
+<p>
+  This is a sample paragraph with <strong>bold text</strong> and <em>italic text</em>.
+  <span class="immersive-translate-target-wrapper">
+    <br>
+    <span class="immersive-translate-target-inner">这是一个示例段落，包含<strong>粗体文本</strong>和<em>斜体文本</em>。</span>
+  </span>
+</p>
+
+<h2>
+  Another Heading Example
+  <span class="immersive-translate-target-wrapper">
+    <br>
+    <span class="immersive-translate-target-inner">另一个标题示例</span>
+  </span>
+</h2>

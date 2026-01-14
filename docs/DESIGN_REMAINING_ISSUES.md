@@ -354,6 +354,7 @@ Phase 5: UI 重构
 |---|----------|----------|----------|---------|------|
 | 1 | 重复翻译 + 错误拆分 | `<h1>` 内嵌套多个 `<div class="word">` | 每个 word 被单独翻译 + 整体再次翻译（4次输出） | `case-001-word-divs.html` | 待修复 |
 | 2 | 段落错位 / 合并翻译 | `<p>` 内含多个 `<br><br>` 分隔的逻辑段落 | 多段译文合并放在 `<p>` 末尾，与原文位置不对应 | `case-002-br-paragraphs.html` | 待修复 |
+| 3 | 全局样式问题 | 所有翻译输出 | 字体/字号不一致、原文译文间距过小、中文字体待优化 | `case-003-translation-style.html` | 待修复 |
 
 ---
 
@@ -511,6 +512,141 @@ describe('Case #2: BR Paragraphs', () => {
     // Assert: no single translation span containing both translations
   });
 });
+```
+
+---
+
+### 案例 #3: 全局样式问题
+
+| 项目 | 内容 |
+|------|------|
+| **问题类型** | 全局样式问题 |
+| **来源页面** | 所有页面（以 Anthropic 官网为例） |
+| **错误表现** | 1. 西文字体与原文不一致<br>2. 字号与原文不一致（可能是 font-weight 问题）<br>3. 中文字体样式待改进（建议思源宋体）<br>4. 原文-译文之间间距过小，排布难看 |
+| **触发条件** | 所有翻译输出 |
+
+**错误输出 HTML：**
+```html
+<h3>
+  <strong>Claude Developer Platform (API)</strong>
+  <span class="immersive-translate-target" style="font-size: 32px; font-weight: 400; font-family: 'Anthropic Serif', Georgia, sans-serif; ...">
+    <strong>Claude开发者平台（API）</strong>
+  </span>
+  <!-- ❌ 问题：
+    1. 内联 style 覆盖了原文样式
+    2. 无换行，译文紧贴原文
+    3. 中文使用了西文 serif 字体
+  -->
+</h3>
+```
+
+**期望输出 HTML（参考沉浸式翻译）：**
+```html
+<h3>
+  <strong>
+    Claude Developer Platform (API)
+    <font class="notranslate immersive-translate-target-wrapper" lang="zh-CN">
+      <br>  <!-- ✓ 换行增加间距 -->
+      <font class="immersive-translate-target-inner">
+        Claude 开发者平台（API）
+      </font>
+    </font>
+  </strong>
+</h3>
+<!-- ✓ 优点：
+  1. 使用 CSS class 控制样式，不用内联 style
+  2. <br> 换行，原文译文视觉分离
+  3. 译文在 <strong> 内部，继承父元素样式
+-->
+```
+
+**问题根源分析：**
+```
+当前行为:
+<h3><strong>原文</strong><span style="...">译文</span></h3>
+                        ↑
+                        ├─ 内联 style 可能覆盖/冲突
+                        ├─ 无换行，紧贴原文
+                        └─ 在 <strong> 外部，样式继承断裂
+
+期望行为:
+<h3><strong>原文<font class="..."><br>译文</font></strong></h3>
+                                   ↑
+                                   ├─ CSS class 控制样式
+                                   ├─ <br> 换行，视觉分离
+                                   └─ 在 <strong> 内部，继承粗体
+```
+
+**修复方向：**
+
+1. **译文插入位置调整**：
+   - 当前：在父元素末尾 appendChild
+   - 改进：在原文文本节点之后插入（保持在同一个 inline 容器内）
+
+2. **添加换行**：
+   - 在译文前插入 `<br>` 元素
+   - 或使用 CSS `display: block` 让译文换行
+
+3. **样式控制改为 CSS class**：
+   ```css
+   /* content.css */
+   .immersive-translate-target {
+     display: block;           /* 换行显示 */
+     margin-top: 0.25em;       /* 与原文间距 */
+     font-family: "Source Han Serif SC", "Noto Serif SC", serif;  /* 中文字体 */
+   }
+   ```
+
+4. **移除内联 style**：
+   - 不再设置 `font-size`, `font-family` 等内联样式
+   - 让译文继承父元素样式
+
+**测试断言：**
+```javascript
+// tests/dom-layout.test.js
+describe('Case #3: Translation Style', () => {
+  it('should NOT use inline styles for translation span', () => {
+    // Assert: translation span has no inline style attribute
+    // or style attribute is minimal (only essential styles)
+  });
+
+  it('should insert line break before translation', () => {
+    // Assert: <br> exists before translation span
+    // or translation span has display:block
+  });
+
+  it('should insert translation inside inline containers', () => {
+    // Setup: <h3><strong>text</strong></h3>
+    // Assert: translation is inside <strong>, not after it
+  });
+});
+```
+
+**CSS 设计建议：**
+```css
+/* src/content.css (新建) */
+.immersive-translate-target-wrapper {
+  display: block;
+  margin-top: 0.3em;
+}
+
+.immersive-translate-target-inner {
+  /* 继承父元素的 font-size, font-weight 等 */
+  /* 仅指定中文字体 fallback */
+  font-family: inherit, "Source Han Serif SC", "Noto Serif SC",
+               "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+/* 针对不同场景的样式微调 */
+h1 .immersive-translate-target-wrapper,
+h2 .immersive-translate-target-wrapper,
+h3 .immersive-translate-target-wrapper {
+  margin-top: 0.2em;  /* 标题间距稍小 */
+}
+
+p .immersive-translate-target-wrapper {
+  margin-top: 0.5em;  /* 段落间距稍大 */
+}
 ```
 
 ---
