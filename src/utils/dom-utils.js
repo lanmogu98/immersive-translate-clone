@@ -35,6 +35,11 @@ class DOMUtils {
             if (element.classList.contains('immersive-translate-target')) continue;
             if (element.closest('.immersive-translate-target')) continue;
 
+            // Issue 38 Case #1: Skip aria-hidden elements (used for screen reader accessibility)
+            // These elements are visually hidden or decorative, not meant to be translated separately
+            if (element.getAttribute('aria-hidden') === 'true') continue;
+            if (element.closest('[aria-hidden="true"]')) continue;
+
             // User-defined selector exclusions
             if (excludedSelectors.length > 0 && this.isExcludedBySelector(element, excludedSelectors)) {
                 continue;
