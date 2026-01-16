@@ -21,11 +21,11 @@ This is the **high-signal entrypoint** for near-term work.
 | **Security Sprint (P3 remaining)** | | | | |
 | 45 | P3 | 提示词注入防护增强: 扩展sanitizeUserPrompt过滤更多注入模式 | 🔲 Pending | — |
 | **Translation Quality Improvements** | | | | |
-| 47 | P1 | Per-model temperature配置: UI + 存储 + 请求透传 | 🟡 In Progress | — |
-| 48 | P1 | 默认翻译风格对齐“媒体风格专家”样本 | 🟡 In Progress | — |
+| 47 | P1 | Per-model temperature配置: UI + 存储 + 请求透传 | ✅ Done | — |
+| 48 | P1 | 默认翻译风格对齐“媒体风格专家”样本 | ✅ Done | — |
 | **Settings UX Cleanup** | | | | |
-| 49 | P2 | Advanced收纳: style prompt + exclusions 移入Advanced | 🟡 In Progress | — |
-| 50 | P2 | Custom Endpoint 才显示 API BaseURL/Model ID | 🔲 Pending | — |
+| 49 | P2 | Advanced收纳: style prompt + exclusions 移入Advanced | ✅ Done | — |
+| 50 | P2 | Custom Endpoint 才显示 API BaseURL/Model ID | ✅ Done | — |
 | **Existing Items** | | | | |
 | 31a | P1 | Batch size configuration: increase default from 5→10, add Settings UI (Advanced section) | ✅ Done | — |
 | 31b | P2 | Smart batch fallback: check context/output token limits and auto-reduce batch size | 🔲 Pending | — |

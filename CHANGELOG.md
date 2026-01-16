@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased] - 2026-01-13
 
+### Added
+-   **Per-model Temperature (Issue 47)**: Added a per-model temperature setting in Provider & Model, with centralized default (0.9) and request-time temperature forwarding.
+
+### Changed
+-   **Default Translation Style (Issue 48)**: Updated the default user style prompt to the media-style expert (news) profile.
+-   **Settings UX Cleanup (Issues 49-50)**: Moved style prompt and exclusions into Advanced, and show API Base URL / Model ID only when Provider is Custom. Custom provider no longer auto-expands Advanced.
+
 ### Security
 -   **Security Sprint Completed (Issues 38-44)**: Comprehensive security hardening across the extension:
     -   **Issue 38 (P0): XSS Protection - DOM Sanitization**: Added attribute whitelist and dangerous attribute removal for cloned DOM elements in rich text rendering. Blocks event handlers (`onclick`, etc.), dangerous URI attributes, and sanitizes `javascript:` URLs.
