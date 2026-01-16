@@ -104,6 +104,8 @@ const DEFAULT_CONFIG = {
     modelId: 'deepseek-v3-2-251201',
     targetLanguage: 'zh-CN',
     userTranslationPrompt: '',
+    temperature: 0.9,
+    modelTemperatures: {},
     excludedDomains: [],
     excludedSelectors: [],
 
@@ -131,6 +133,31 @@ const setReadOnly = (el, isReadOnly) => {
 
 // Current provider API keys cache (loaded from storage)
 let providerApiKeys = {};
+// Per-model temperature overrides (loaded from storage)
+let modelTemperatures = {};
+
+const buildModelTempKey = (providerId, modelId) => `${providerId || ''}::${modelId || ''}`;
+
+const getProviderDefaultTemperature = (providerId) => {
+    if (globalThis.ModelRegistry && typeof globalThis.ModelRegistry.getProviderDefaults === 'function') {
+        return globalThis.ModelRegistry.getProviderDefaults(providerId)?.temperature ?? DEFAULT_CONFIG.temperature;
+    }
+    return DEFAULT_CONFIG.temperature;
+};
+
+const resolveTemperatureForSelection = (providerId, modelId) => {
+    const key = buildModelTempKey(providerId, modelId);
+    const stored = modelTemperatures[key];
+    if (typeof stored === 'number' && !Number.isNaN(stored)) return stored;
+    return getProviderDefaultTemperature(providerId);
+};
+
+const setTemperatureField = (providerId, modelId) => {
+    const temperatureEl = getEl('temperature');
+    if (!temperatureEl) return;
+    const resolved = resolveTemperatureForSelection(providerId, modelId);
+    temperatureEl.value = resolved;
+};
 
 const populateProviderSelect = (selectedProviderId) => {
     const providerSelect = getEl('providerId');
@@ -285,6 +312,7 @@ const restoreOptions = () => {
     chrome.storage.sync.get(DEFAULT_CONFIG, (items) => {
         // Load per-provider API keys (Bug 3 fix)
         providerApiKeys = items.providerApiKeys || {};
+        modelTemperatures = items.modelTemperatures || {};
         
         // Migration: if old single apiKey exists but providerApiKeys is empty
         if (items.apiKey && Object.keys(providerApiKeys).length === 0) {
@@ -314,6 +342,13 @@ const restoreOptions = () => {
 
         // API Key for current provider (Bug 3 fix)
         loadApiKeyForProvider(effectiveProviderId);
+
+        // Temperature (per-model)
+        const tempKey = buildModelTempKey(effectiveProviderId, effectiveModelId);
+        if (typeof modelTemperatures[tempKey] !== 'number' && typeof items.temperature === 'number') {
+            modelTemperatures[tempKey] = items.temperature;
+        }
+        setTemperatureField(effectiveProviderId, getEl('modelId')?.value);
 
         // Language + prompt (Bug 1 fix: ensure defaults are used)
         const effectiveTargetLang = items.targetLanguage || DEFAULT_CONFIG.targetLanguage;
@@ -346,9 +381,17 @@ const saveOptions = () => {
     const apiKey = getEl('apiKey')?.value?.trim() || '';
     const targetLanguage = getEl('targetLanguage')?.value || DEFAULT_CONFIG.targetLanguage;
     const userTranslationPrompt = getEl('userTranslationPrompt')?.value?.trim() || '';
+    const temperatureEl = getEl('temperature');
     const excludedDomains = parseMultilineList(getEl('excludedDomains')?.value || '');
     const excludedSelectors = parseMultilineList(getEl('excludedSelectors')?.value || '');
     const batchSize = parseInt(getEl('batchSize')?.value, 10) || DEFAULT_CONFIG.batchSize;
+
+    let temperature = resolveTemperatureForSelection(providerId, modelId);
+    if (temperatureEl && temperatureEl.value !== '') {
+        const parsed = parseFloat(temperatureEl.value);
+        if (!Number.isNaN(parsed)) temperature = parsed;
+    }
+    modelTemperatures[buildModelTempKey(providerId, modelId)] = temperature;
 
     // Save current API key to provider cache (Bug 3 fix)
     if (apiKey) {
@@ -386,6 +429,8 @@ const saveOptions = () => {
             modelName,
             targetLanguage,
             userTranslationPrompt,
+            temperature,
+            modelTemperatures,
             excludedDomains,
             excludedSelectors,
             providerApiKeys, // Save per-provider keys (Bug 3 fix)
@@ -422,6 +467,7 @@ document.addEventListener('DOMContentLoaded', () => {
             populateModelSelect(newProviderId, null);
             deriveApiFieldsFromSelection();
             loadApiKeyForProvider(newProviderId); // Load API key for new provider (Bug 3 fix)
+            setTemperatureField(newProviderId, getEl('modelId')?.value);
 
             // If user picked Custom, open Advanced for convenience
             const advanced = getEl('advancedSection');
@@ -434,7 +480,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const modelSelect = getEl('modelId');
     if (modelSelect) {
-        modelSelect.addEventListener('change', deriveApiFieldsFromSelection);
+        modelSelect.addEventListener('change', () => {
+            deriveApiFieldsFromSelection();
+            setTemperatureField(getEl('providerId')?.value, modelSelect.value);
+        });
     }
 
     // Save button (Bug 5 fix: event listener inside DOMContentLoaded)

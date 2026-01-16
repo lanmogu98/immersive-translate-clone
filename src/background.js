@@ -117,6 +117,7 @@ async function streamTranslation(text, config, port) {
         customPrompt, // legacy
         userTranslationPrompt,
         targetLanguage,
+        temperature,
     } = config;
 
     // Prefer building prompt from separated fields (Issue 17 + 11)
@@ -161,20 +162,25 @@ async function streamTranslation(text, config, port) {
         // This pairs with SECURITY RULES in PROTOCOL_PROMPT to prevent prompt injection
         const wrappedText = `<translate_input>\n${text}\n</translate_input>`;
 
+        const requestBody = {
+            model: modelName,
+            messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: wrappedText }
+            ],
+            stream: true
+        };
+        if (typeof temperature === 'number' && !Number.isNaN(temperature)) {
+            requestBody.temperature = temperature;
+        }
+
         const response = await fetch(endpoint, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${apiKey}`
             },
-            body: JSON.stringify({
-                model: modelName,
-                messages: [
-                    { role: 'system', content: systemPrompt },
-                    { role: 'user', content: wrappedText }
-                ],
-                stream: true
-            }),
+            body: JSON.stringify(requestBody),
             signal: signal
         });
 

@@ -25,6 +25,7 @@ const GENERATED_JS_PATH = path.join(ROOT_DIR, 'src/utils/llm-config.generated.js
  * - Adds default values for optional fields
  */
 function transformConfig(rawConfig) {
+    const defaultTemperature = rawConfig?._defaults?.temperature ?? 0.7;
     const providers = {};
 
     for (const [providerId, providerConfig] of Object.entries(rawConfig)) {
@@ -59,7 +60,7 @@ function transformConfig(rawConfig) {
             name: providerConfig.name || providerId,
             apiKeyEnvVar: providerConfig.api_key_env_var || '',
             baseUrl: providerConfig.api_base_url || '',
-            temperature: providerConfig.temperature ?? 0.6,
+            temperature: providerConfig.temperature ?? defaultTemperature,
             maxTokens: providerConfig.max_tokens ?? 4096,
             contextWindow: providerConfig.context_window ?? 128000,
             pricingCurrency: providerConfig.pricing_currency || '$',

@@ -256,6 +256,8 @@ async function runTranslationProcess() {
             customPrompt: '',
             targetLanguage: 'zh-CN',
             userTranslationPrompt: '',
+            temperature: 0.9,
+            modelTemperatures: {},
             excludedDomains: [],
             excludedSelectors: [],
             batchSize: DEFAULT_BATCH_SIZE // Issue 31a

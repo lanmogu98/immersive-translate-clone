@@ -38,6 +38,12 @@ _shared_endpoints:
   openrouter: &openrouter_endpoint "https://openrouter.ai/api/v1/chat/completions"
 
 #-------------------------------------------------------------------------------
+# Global Defaults
+#-------------------------------------------------------------------------------
+_defaults:
+  temperature: 0.9
+
+#-------------------------------------------------------------------------------
 # Providers
 #-------------------------------------------------------------------------------
 
@@ -45,7 +51,6 @@ deepseek-volcengine:
   name: "DeepSeek (Volcengine)"
   api_key_env_var: "DEEPSEEK_API_KEY_VOLC"
   api_base_url: *volcengine_endpoint
-  temperature: 0.4
   max_tokens: 16000
   context_window: 128000
   pricing_currency: "¥"
@@ -63,7 +68,6 @@ gemini:
   name: "Google Gemini"
   api_key_env_var: "GEMINI_API_KEY"
   api_base_url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-  temperature: 1.0
   max_tokens: 65536
   context_window: 1000000
   pricing_currency: "$"
@@ -81,7 +85,6 @@ gemini-free:
   name: "Google Gemini (Free Tier)"
   api_key_env_var: "GEMINI_FT_API_KEY"
   api_base_url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-  temperature: 1.0
   max_tokens: 65536
   context_window: 1000000
   pricing_currency: "$"
@@ -98,7 +101,6 @@ qwen:
   name: "Alibaba Qwen"
   api_key_env_var: "QWEN_API_KEY"
   api_base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
-  temperature: 0.6
   max_tokens: 32768
   context_window: 995904
   pricing_currency: "¥"
@@ -116,7 +118,6 @@ zhipu:
   name: "Zhipu AI (GLM)"
   api_key_env_var: "ZHIPU_API_KEY"
   api_base_url: "https://open.bigmodel.cn/api/paas/v4/chat/completions"
-  temperature: 0.6
   max_tokens: 128000
   context_window: 200000
   pricing_currency: "$"
@@ -134,7 +135,6 @@ doubao:
   name: "Doubao (Volcengine)"
   api_key_env_var: "DOUBAO_API_KEY"
   api_base_url: *volcengine_endpoint
-  temperature: 0.6
   max_tokens: 32000
   context_window: 256000
   pricing_currency: "¥"
@@ -152,7 +152,6 @@ openai-openrouter:
   name: "OpenAI (via OpenRouter)"
   api_key_env_var: "OPENAI_API_KEY_OPENROUTER"
   api_base_url: *openrouter_endpoint
-  temperature: 0.6
   max_tokens: 16384
   context_window: 128000
   pricing_currency: "$"
@@ -170,7 +169,6 @@ anthropic-openrouter:
   name: "Anthropic (via OpenRouter)"
   api_key_env_var: "ANTHROPIC_API_KEY_OPENROUTER"
   api_base_url: *openrouter_endpoint
-  temperature: 0.6
   max_tokens: 64000
   context_window: 200000
   pricing_currency: "$"
@@ -192,7 +190,6 @@ custom:
   name: "Custom Endpoint"
   api_key_env_var: ""
   api_base_url: ""
-  temperature: 0.6
   max_tokens: 4096
   context_window: 128000
   pricing_currency: "$"

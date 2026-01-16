@@ -71,7 +71,7 @@ const PROTOCOL_PROMPT = `You are a professional translator. Translate the input 
 - Multiple paragraphs → Use %% as separator between translations`;
 
 // Default user translation prompt
-const DEFAULT_USER_PROMPT = '翻译风格：保持原文语气，流畅自然。';
+const DEFAULT_USER_PROMPT = 'Translation style: media style expert (news). Maintain a journalistic tone, structure, and diction. Keep headlines concise and impactful while accurately conveying meaning. Translate quotes precisely, preserving context and intent. Ensure journalistic terms, datelines, and attributions are accurate. Preserve proper nouns, names of people, organizations, and places. When HTML tags appear, place them appropriately while keeping the translation fluent.';
 
 // Maximum length for user prompt (Issue 25: prevent prompt injection via long inputs)
 const MAX_USER_PROMPT_LENGTH = 500;
