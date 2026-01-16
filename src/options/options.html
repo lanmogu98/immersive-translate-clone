@@ -28,16 +28,22 @@
                     <div class="hint">Choose a provider to auto-fill endpoint and model list.</div>
                 </div>
 
-                <div class="field">
+                <div class="field model-field">
                     <label for="modelId">Model</label>
                     <select id="modelId"></select>
                     <div class="hint">Model list depends on provider.</div>
                 </div>
 
-                <div class="field">
-                    <label for="temperature">Temperature</label>
-                    <input type="number" id="temperature" min="0" max="2" step="0.1" placeholder="0.7">
-                    <div class="hint">Applies to the selected model only.</div>
+                <div class="field span-2 custom-endpoint-only is-hidden">
+                    <label for="apiUrl">API Base URL</label>
+                    <input type="text" id="apiUrl" placeholder="https://ark.cn-beijing.volces.com/api/v3">
+                    <div class="hint">Visible only when Provider is <strong>Custom</strong>.</div>
+                </div>
+
+                <div class="field span-2 custom-endpoint-only is-hidden">
+                    <label for="modelName">Model ID</label>
+                    <input type="text" id="modelName" placeholder="deepseek-v3-2-251201">
+                    <div class="hint">Visible only when Provider is <strong>Custom</strong>.</div>
                 </div>
 
                 <div class="field span-2">
@@ -47,6 +53,12 @@
                         <button type="button" id="toggleApiKey" class="icon-btn" title="Show API Key">👁️</button>
                     </div>
                     <div class="hint">Stored per provider. Each provider remembers its own key.</div>
+                </div>
+
+                <div class="field">
+                    <label for="temperature">Temperature</label>
+                    <input type="number" id="temperature" min="0" max="2" step="0.1" placeholder="0.7">
+                    <div class="hint">Applies to the selected model only.</div>
                 </div>
             </div>
         </section>
@@ -58,18 +70,18 @@
                     <label for="targetLanguage">Target Language</label>
                     <select id="targetLanguage"></select>
                 </div>
-
-                <div class="field span-2">
-                    <label for="userTranslationPrompt">Style Prompt</label>
-                    <textarea id="userTranslationPrompt" rows="6" placeholder="e.g. 保持原文语气，流畅自然。术语保持一致。"></textarea>
-                    <div class="hint">Only controls style/tone. Output protocol is fixed internally.</div>
-                </div>
             </div>
         </section>
 
-        <section class="card">
-            <h2>🚫 Exclusions</h2>
-            <div class="grid">
+        <details class="card advanced" id="advancedSection">
+            <summary>⚙️ Advanced</summary>
+            <div class="grid advanced-body">
+                <div class="field span-2">
+                    <label for="userTranslationPrompt">Style Prompt</label>
+                    <textarea id="userTranslationPrompt" rows="6"></textarea>
+                    <div class="hint">Only controls style/tone. Output protocol is fixed internally.</div>
+                </div>
+
                 <div class="field span-2">
                     <label for="excludedDomains">Excluded Domains (one per line)</label>
                     <textarea id="excludedDomains" rows="4" placeholder="example.com&#10;*.internal.com"></textarea>
@@ -80,23 +92,6 @@
                     <label for="excludedSelectors">Excluded Selectors (one per line)</label>
                     <textarea id="excludedSelectors" rows="4" placeholder=".no-translate&#10;[data-no-translate]&#10;#sidebar"></textarea>
                     <div class="hint">Elements matching these selectors (or inside them) will be skipped.</div>
-                </div>
-            </div>
-        </section>
-
-        <details class="card advanced" id="advancedSection">
-            <summary>⚙️ Advanced</summary>
-            <div class="grid advanced-body">
-                <div class="field span-2">
-                    <label for="apiUrl">API Base URL</label>
-                    <input type="text" id="apiUrl" placeholder="https://ark.cn-beijing.volces.com/api/v3">
-                    <div class="hint">Auto-filled by Provider. Edit only when Provider is <strong>Custom</strong>.</div>
-                </div>
-
-                <div class="field span-2">
-                    <label for="modelName">Model ID</label>
-                    <input type="text" id="modelName" placeholder="deepseek-v3-2-251201">
-                    <div class="hint">Auto-filled by Provider. Edit only when Provider is <strong>Custom</strong>.</div>
                 </div>
 
                 <div class="field">

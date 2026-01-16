@@ -131,6 +131,16 @@ const setReadOnly = (el, isReadOnly) => {
     el.readOnly = !!isReadOnly;
 };
 
+const setCustomEndpointVisibility = (providerId) => {
+    const isCustom = providerId === 'custom';
+    document.querySelectorAll('.custom-endpoint-only').forEach((el) => {
+        el.classList.toggle('is-hidden', !isCustom);
+    });
+    document.querySelectorAll('.model-field').forEach((el) => {
+        el.classList.toggle('is-hidden', isCustom);
+    });
+};
+
 // Current provider API keys cache (loaded from storage)
 let providerApiKeys = {};
 // Per-model temperature overrides (loaded from storage)
@@ -339,6 +349,7 @@ const restoreOptions = () => {
         
         populateProviderSelect(effectiveProviderId);
         populateModelSelect(effectiveProviderId, effectiveModelId);
+        setCustomEndpointVisibility(effectiveProviderId);
 
         // API Key for current provider (Bug 3 fix)
         loadApiKeyForProvider(effectiveProviderId);
@@ -468,10 +479,8 @@ document.addEventListener('DOMContentLoaded', () => {
             deriveApiFieldsFromSelection();
             loadApiKeyForProvider(newProviderId); // Load API key for new provider (Bug 3 fix)
             setTemperatureField(newProviderId, getEl('modelId')?.value);
+            setCustomEndpointVisibility(newProviderId);
 
-            // If user picked Custom, open Advanced for convenience
-            const advanced = getEl('advancedSection');
-            if (advanced && newProviderId === 'custom') advanced.open = true;
         });
         
         // Store initial provider value
