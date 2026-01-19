@@ -2,7 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased] - 2026-01-13
+## [Unreleased]
+
+## [0.1.1] - 2026-01-16
 
 ### Added
 -   **Per-model Temperature (Issue 47)**: Added a per-model temperature setting in Provider & Model, with centralized default (0.9) and request-time temperature forwarding.

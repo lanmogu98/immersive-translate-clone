@@ -86,7 +86,7 @@ describe('model-registry', () => {
             expect(provider).not.toBeNull();
             expect(provider.name).toBe('DeepSeek (Volcengine)');
             expect(provider.baseUrl).toContain('volces.com');
-            expect(provider.temperature).toBe(0.4);
+            expect(provider.temperature).toBe(0.9);
         });
 
         test('should return null for unknown provider', () => {
@@ -127,7 +127,7 @@ describe('model-registry', () => {
     describe('getProviderDefaults()', () => {
         test('should return default settings for known provider', () => {
             const defaults = ModelRegistry.getProviderDefaults('deepseek-volcengine');
-            expect(defaults.temperature).toBe(0.4);
+            expect(defaults.temperature).toBe(0.9);
             expect(defaults.maxTokens).toBe(16000);
             expect(defaults.contextWindow).toBe(128000);
             expect(defaults.pricingCurrency).toBe('¥');
@@ -158,7 +158,7 @@ describe('model-registry', () => {
             expect(config.apiUrl).toContain('volces.com');
             expect(config.modelName).toBe('deepseek-v3-2-251201');
             expect(config.apiKey).toBe('test-key');
-            expect(config.temperature).toBe(0.4);
+            expect(config.temperature).toBe(0.9);
             expect(config.maxTokens).toBe(16000);
         });
 
