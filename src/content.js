@@ -70,6 +70,26 @@ async function translationWorker(llmClient, batchSize = DEFAULT_BATCH_SIZE) {
     }
 }
 
+/**
+ * Strip RichText V2 tokens from text, returning plain text.
+ * Used as fallback when renderToNode fails.
+ * @param {string} text - Text containing V2 tokens
+ * @returns {{ text: string, incomplete: boolean }} - Plain text and whether content appears truncated
+ */
+function stripV2Tokens(text) {
+    // Check if content appears truncated (ends with incomplete token)
+    const incomplete = /\[\[(?:[^\]]*)$/.test(text);
+
+    // Remove V2 marker and all tokens
+    const plain = text
+        .replace(/\[\[ITC_RICH_V2\]\]\n?/g, '')
+        .replace(/\[\[\/ITC(?::[a-z]+\d+)?\]\]/g, '')
+        .replace(/\[\[ITC:[a-z]+\d+\]\]/g, '')
+        .trim();
+
+    return { text: plain, incomplete };
+}
+
 async function translateBatch(batch, llmClient) {
     // RichText V2 marker (token protocol)
     const RICH_V2_MARKER = '[[ITC_RICH_V2]]';
@@ -135,8 +155,15 @@ async function translateBatch(batch, llmClient) {
                                 const out = content.trim();
                                 const ok = globalThis.RichTextV2.renderToNode(node, richTokenized[currentNodeIndex], out);
                                 if (!ok) {
-                                    // Issue 39: textContent automatically clears children, no need for innerHTML
-                                    node.textContent = out;
+                                    // V2 render failed - extract plain text instead of showing raw tokens
+                                    const { text: plainText, incomplete } = stripV2Tokens(out);
+                                    if (incomplete || !plainText) {
+                                        // Content truncated or empty - mark as error
+                                        DOMUtils.showError(node, 'Translation incomplete');
+                                    } else {
+                                        // Show plain text fallback
+                                        DOMUtils.appendTranslation(node, plainText);
+                                    }
                                 }
                             } else {
                                 // Trim trailing newlines usually associated with the separator
@@ -215,8 +242,15 @@ async function translateBatch(batch, llmClient) {
                         const out = buffer.trim();
                         const ok = globalThis.RichTextV2.renderToNode(node, richTokenized[currentNodeIndex], out);
                         if (!ok) {
-                            // Issue 39: textContent automatically clears children, no need for innerHTML
-                            node.textContent = out;
+                            // V2 render failed - extract plain text instead of showing raw tokens
+                            const { text: plainText, incomplete } = stripV2Tokens(out);
+                            if (incomplete || !plainText) {
+                                // Content truncated or empty - mark as error
+                                DOMUtils.showError(node, 'Translation incomplete');
+                            } else {
+                                // Show plain text fallback
+                                DOMUtils.appendTranslation(node, plainText);
+                            }
                         }
                     } else {
                         DOMUtils.appendTranslation(node, buffer.trim());

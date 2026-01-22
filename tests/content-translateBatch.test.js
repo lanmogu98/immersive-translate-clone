@@ -142,6 +142,66 @@ describe('content translateBatch (error handling)', () => {
   });
 });
 
+describe('content translateBatch (richtext v2 error handling)', () => {
+  const { RichTextV2 } = require('../src/utils/richtext-v2.js');
+  global.RichTextV2 = RichTextV2;
+
+  test('shows error instead of raw tokens when v2 content is truncated', async () => {
+    document.body.innerHTML = `
+      <p id="a">
+        He preferred <a href="/wiki/Nikki_Haley">Nikki Haley</a> over Trump.
+      </p>
+    `;
+    const a = document.getElementById('a');
+
+    const llmClient = {
+      translateStream: (text, onChunk, onError, onDone) => {
+        // Simulate truncated v2 content (ends with incomplete token)
+        onChunk('[[ITC_RICH_V2]]\n他更倾向于[[ITC:a0]]妮基·黑利[[');
+        onDone();
+      },
+    };
+
+    await translateBatch([{ element: a, text: a.textContent, richText: 'v2' }], llmClient);
+
+    const node = a.querySelector(':scope > .immersive-translate-target');
+    expect(node).not.toBeNull();
+    // Should NOT show raw tokens
+    expect(node.textContent).not.toContain('[[ITC');
+    // Should show error
+    expect(node.classList.contains('immersive-translate-error')).toBe(true);
+  });
+
+  test('shows plain text fallback when v2 render fails but content is complete', async () => {
+    document.body.innerHTML = `
+      <p id="a">
+        He preferred <a href="/wiki/Nikki_Haley">Nikki Haley</a> over Trump.
+      </p>
+    `;
+    const a = document.getElementById('a');
+
+    const llmClient = {
+      translateStream: (text, onChunk, onError, onDone) => {
+        // V2 content with mismatched tokens (will fail validation)
+        // but content is otherwise complete text
+        onChunk('[[ITC_RICH_V2]]\n他更倾向于妮基·黑利而非特朗普。');
+        onDone();
+      },
+    };
+
+    await translateBatch([{ element: a, text: a.textContent, richText: 'v2' }], llmClient);
+
+    const node = a.querySelector(':scope > .immersive-translate-target');
+    expect(node).not.toBeNull();
+    // Should show plain text (tokens stripped)
+    expect(node.textContent).toContain('他更倾向于妮基·黑利而非特朗普');
+    // Should NOT show raw tokens
+    expect(node.textContent).not.toContain('[[ITC');
+    // Should NOT be marked as error (content is valid)
+    expect(node.classList.contains('immersive-translate-error')).toBe(false);
+  });
+});
+
 describe('content translateBatch (richtext v2 token protocol)', () => {
   const { RichTextV2 } = require('../src/utils/richtext-v2.js');
   global.RichTextV2 = RichTextV2;
