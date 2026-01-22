@@ -140,6 +140,68 @@ describe('content translateBatch (error handling)', () => {
     expect(aNode.classList.contains('immersive-translate-error')).toBe(true);
     expect(aNode.textContent).toContain('Error');
   });
+
+  test('does not append buffer content after error when both onError and onDone are called', async () => {
+    document.body.innerHTML = `
+      <p id="a">Paragraph one is long enough.</p>
+    `;
+
+    const a = document.getElementById('a');
+
+    const llmClient = {
+      translateStream: (text, onChunk, onError, onDone) => {
+        // Simulate streaming partial content
+        onChunk('部分翻译内容');
+        // Then error occurs - in real llm-client, both onError and onDone are called
+        onError('Request timed out. Please try again.');
+        // onDone is also called (simulating llm-client behavior)
+        onDone();
+      },
+    };
+
+    await translateBatch(
+      [{ element: a, text: a.textContent }],
+      llmClient
+    );
+
+    const aNode = a.querySelector(':scope > .immersive-translate-target');
+
+    // Node already had content before error, so should NOT have error class
+    expect(aNode.classList.contains('immersive-translate-error')).toBe(false);
+    // Content should be preserved without error message prepended
+    expect(aNode.textContent).toBe('部分翻译内容');
+    expect(aNode.textContent).not.toContain('Error');
+  });
+
+  test('does not append buffer content to error node when no prior content exists', async () => {
+    document.body.innerHTML = `
+      <p id="a">Paragraph one is long enough.</p>
+    `;
+
+    const a = document.getElementById('a');
+
+    const llmClient = {
+      translateStream: (text, onChunk, onError, onDone) => {
+        // Error occurs immediately without any content
+        onError('Request timed out. Please try again.');
+        // onDone is also called (simulating llm-client behavior) with buffer still empty
+        onDone();
+      },
+    };
+
+    await translateBatch(
+      [{ element: a, text: a.textContent }],
+      llmClient
+    );
+
+    const aNode = a.querySelector(':scope > .immersive-translate-target');
+
+    // Should have error class and ONLY error message (no extra content appended)
+    expect(aNode.classList.contains('immersive-translate-error')).toBe(true);
+    expect(aNode.textContent).toContain('Error');
+    // Should not have duplicate or concatenated content
+    expect(aNode.textContent).toBe('[Error: Request timed out. Please try again.]');
+  });
 });
 
 describe('content translateBatch (richtext v2 error handling)', () => {

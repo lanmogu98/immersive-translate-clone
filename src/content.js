@@ -235,7 +235,9 @@ async function translateBatch(batch, llmClient) {
             },
             () => {
                 // Final flush of whatever is left in buffer
-                if (buffer.length > 0 && nodes[currentNodeIndex]) {
+                // Skip nodes already marked as error (onError may have been called before onDone)
+                if (buffer.length > 0 && nodes[currentNodeIndex] &&
+                    !nodes[currentNodeIndex].classList.contains('immersive-translate-error')) {
                     const node = nodes[currentNodeIndex];
                     const mode = modes[currentNodeIndex];
                     if (mode === 'v2' && richTokenized[currentNodeIndex] && globalThis.RichTextV2) {
