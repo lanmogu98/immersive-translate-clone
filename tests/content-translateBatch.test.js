@@ -75,6 +75,73 @@ describe('content translateBatch (stream parser)', () => {
   });
 });
 
+describe('content translateBatch (error handling)', () => {
+  test('does not mark nodes with existing content as error when timeout occurs', async () => {
+    document.body.innerHTML = `
+      <p id="a">Paragraph one is long enough.</p>
+      <p id="b">Paragraph two is also long enough.</p>
+    `;
+
+    const a = document.getElementById('a');
+    const b = document.getElementById('b');
+
+    const llmClient = {
+      translateStream: (text, onChunk, onError, onDone) => {
+        // Simulate streaming content before error
+        onChunk('翻译内容一');
+        onChunk('%%');
+        onChunk('翻译内容二');
+        // Then timeout error occurs
+        onError('Request timed out. Please try again.');
+      },
+    };
+
+    await translateBatch(
+      [
+        { element: a, text: a.textContent },
+        { element: b, text: b.textContent },
+      ],
+      llmClient
+    );
+
+    const aNode = a.querySelector(':scope > .immersive-translate-target');
+    const bNode = b.querySelector(':scope > .immersive-translate-target');
+
+    // Nodes with content should NOT have error class
+    expect(aNode.textContent).toBe('翻译内容一');
+    expect(aNode.classList.contains('immersive-translate-error')).toBe(false);
+
+    expect(bNode.textContent).toBe('翻译内容二');
+    expect(bNode.classList.contains('immersive-translate-error')).toBe(false);
+  });
+
+  test('shows error on nodes without content when error occurs', async () => {
+    document.body.innerHTML = `
+      <p id="a">Paragraph one is long enough.</p>
+    `;
+
+    const a = document.getElementById('a');
+
+    const llmClient = {
+      translateStream: (text, onChunk, onError, onDone) => {
+        // Error occurs immediately without any content
+        onError('Request timed out. Please try again.');
+      },
+    };
+
+    await translateBatch(
+      [{ element: a, text: a.textContent }],
+      llmClient
+    );
+
+    const aNode = a.querySelector(':scope > .immersive-translate-target');
+
+    // Node without content SHOULD have error class and error message
+    expect(aNode.classList.contains('immersive-translate-error')).toBe(true);
+    expect(aNode.textContent).toContain('Error');
+  });
+});
+
 describe('content translateBatch (richtext v2 token protocol)', () => {
   const { RichTextV2 } = require('../src/utils/richtext-v2.js');
   global.RichTextV2 = RichTextV2;

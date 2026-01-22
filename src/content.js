@@ -190,9 +190,18 @@ async function translateBatch(batch, llmClient) {
             (error) => {
                 batch.forEach((ctx, idx) => {
                     if (nodes[idx]) {
-                        nodes[idx].textContent += ` [Error: ${error}]`;
-                        nodes[idx].classList.add('immersive-translate-error');
-                        DOMUtils.removeLoadingState(nodes[idx]);
+                        // Check if node already has translation content (not just loading state)
+                        const loadingEl = nodes[idx].querySelector('.immersive-translate-loading');
+                        const hasContent = nodes[idx].textContent.trim() && !loadingEl;
+
+                        if (hasContent) {
+                            // Translation content already present from streaming
+                            // Don't mark as error since translation was successful
+                            DOMUtils.removeLoadingState(nodes[idx]);
+                        } else {
+                            // No content yet, show error properly
+                            DOMUtils.showError(nodes[idx], error);
+                        }
                     }
                 });
                 resolve();
