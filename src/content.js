@@ -215,27 +215,62 @@ async function translateBatch(batch, llmClient) {
                 }
             },
             (error) => {
-                batch.forEach((ctx, idx) => {
-                    if (nodes[idx]) {
-                        // Check if node already has translation content (not just loading state)
-                        const loadingEl = nodes[idx].querySelector('.immersive-translate-loading');
-                        const hasContent = nodes[idx].textContent.trim() && !loadingEl;
+                // Determine if error is recoverable (user experience: show partial content)
+                const errorLower = (error || '').toLowerCase();
+                const isRecoverableError =
+                    errorLower.includes('timed out') ||
+                    errorLower.includes('timeout') ||
+                    errorLower.includes('aborted') ||
+                    errorLower.includes('rate limit') ||
+                    errorLower.includes('rate_limit');
 
-                        if (hasContent) {
-                            // Translation content already present from streaming
-                            // Don't mark as error since translation was successful
-                            DOMUtils.removeLoadingState(nodes[idx]);
-                        } else {
-                            // No content yet, show error properly
-                            DOMUtils.showError(nodes[idx], error);
+                // First: flush buffer to current node if it has content
+                // This must happen BEFORE checking hasContent for currentNodeIndex
+                if (buffer.trim() && nodes[currentNodeIndex]) {
+                    const node = nodes[currentNodeIndex];
+                    const mode = modes[currentNodeIndex];
+                    const bufferContent = buffer.trim();
+
+                    if (mode === 'v2' && richTokenized[currentNodeIndex] && globalThis.RichTextV2) {
+                        const ok = globalThis.RichTextV2.renderToNode(node, richTokenized[currentNodeIndex], bufferContent);
+                        if (!ok) {
+                            const { text: plainText, incomplete } = stripV2Tokens(bufferContent);
+                            if (plainText && !incomplete) {
+                                DOMUtils.appendTranslation(node, plainText);
+                            }
                         }
+                    } else {
+                        DOMUtils.appendTranslation(node, bufferContent);
+                    }
+                    buffer = ''; // Clear to prevent double-flush in onDone
+                }
+
+                // Now handle each node based on its state
+                batch.forEach((ctx, idx) => {
+                    if (!nodes[idx]) return;
+
+                    const node = nodes[idx];
+                    const loadingEl = node.querySelector('.immersive-translate-loading');
+                    const hasContent = node.textContent.trim() && !loadingEl;
+
+                    if (hasContent) {
+                        // Node has translation content - show it, don't show error
+                        DOMUtils.removeLoadingState(node);
+                    } else if (isRecoverableError) {
+                        // Recoverable error but no content - silently remove loading
+                        // Better UX than showing scary error message
+                        DOMUtils.removeLoadingState(node);
+                    } else {
+                        // Fatal error with no content - show error
+                        DOMUtils.showError(node, error);
                     }
                 });
                 resolve();
             },
             () => {
                 // Final flush of whatever is left in buffer
-                // Skip nodes already marked as error (onError may have been called before onDone)
+                // Note: If onError was called, buffer is already cleared there.
+                // The error class check is a safety net for edge cases.
                 if (buffer.length > 0 && nodes[currentNodeIndex] &&
                     !nodes[currentNodeIndex].classList.contains('immersive-translate-error')) {
                     const node = nodes[currentNodeIndex];

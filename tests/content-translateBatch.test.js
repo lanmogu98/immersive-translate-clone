@@ -115,7 +115,7 @@ describe('content translateBatch (error handling)', () => {
     expect(bNode.classList.contains('immersive-translate-error')).toBe(false);
   });
 
-  test('shows error on nodes without content when error occurs', async () => {
+  test('shows error on nodes without content when fatal error occurs', async () => {
     document.body.innerHTML = `
       <p id="a">Paragraph one is long enough.</p>
     `;
@@ -124,7 +124,33 @@ describe('content translateBatch (error handling)', () => {
 
     const llmClient = {
       translateStream: (text, onChunk, onError, onDone) => {
-        // Error occurs immediately without any content
+        // Fatal error (not timeout/rate limit) occurs immediately without any content
+        onError('Invalid API key');
+      },
+    };
+
+    await translateBatch(
+      [{ element: a, text: a.textContent }],
+      llmClient
+    );
+
+    const aNode = a.querySelector(':scope > .immersive-translate-target');
+
+    // Node without content SHOULD have error class and error message for fatal errors
+    expect(aNode.classList.contains('immersive-translate-error')).toBe(true);
+    expect(aNode.textContent).toContain('Error');
+  });
+
+  test('does not show error for timeout when no content exists (graceful degradation)', async () => {
+    document.body.innerHTML = `
+      <p id="a">Paragraph one is long enough.</p>
+    `;
+
+    const a = document.getElementById('a');
+
+    const llmClient = {
+      translateStream: (text, onChunk, onError, onDone) => {
+        // Timeout error occurs immediately without any content
         onError('Request timed out. Please try again.');
       },
     };
@@ -136,9 +162,10 @@ describe('content translateBatch (error handling)', () => {
 
     const aNode = a.querySelector(':scope > .immersive-translate-target');
 
-    // Node without content SHOULD have error class and error message
-    expect(aNode.classList.contains('immersive-translate-error')).toBe(true);
-    expect(aNode.textContent).toContain('Error');
+    // For recoverable errors (timeout), should NOT show error - better UX
+    expect(aNode.classList.contains('immersive-translate-error')).toBe(false);
+    expect(aNode.classList.contains('immersive-translate-loading')).toBe(false);
+    expect(aNode.textContent).not.toContain('Error');
   });
 
   test('does not append buffer content after error when both onError and onDone are called', async () => {
@@ -173,7 +200,7 @@ describe('content translateBatch (error handling)', () => {
     expect(aNode.textContent).not.toContain('Error');
   });
 
-  test('does not append buffer content to error node when no prior content exists', async () => {
+  test('does not append buffer content to error node when fatal error with no prior content', async () => {
     document.body.innerHTML = `
       <p id="a">Paragraph one is long enough.</p>
     `;
@@ -182,8 +209,8 @@ describe('content translateBatch (error handling)', () => {
 
     const llmClient = {
       translateStream: (text, onChunk, onError, onDone) => {
-        // Error occurs immediately without any content
-        onError('Request timed out. Please try again.');
+        // Fatal error occurs immediately without any content
+        onError('Invalid API key');
         // onDone is also called (simulating llm-client behavior) with buffer still empty
         onDone();
       },
@@ -200,7 +227,38 @@ describe('content translateBatch (error handling)', () => {
     expect(aNode.classList.contains('immersive-translate-error')).toBe(true);
     expect(aNode.textContent).toContain('Error');
     // Should not have duplicate or concatenated content
-    expect(aNode.textContent).toBe('[Error: Request timed out. Please try again.]');
+    expect(aNode.textContent).toBe('[Error: Invalid API key]');
+  });
+
+  test('flushes buffer content on timeout before deciding node state', async () => {
+    document.body.innerHTML = `
+      <p id="a">Paragraph one is long enough.</p>
+    `;
+
+    const a = document.getElementById('a');
+
+    const llmClient = {
+      translateStream: (text, onChunk, onError, onDone) => {
+        // Content is in buffer but not yet flushed (no %% separator)
+        onChunk('部分翻译内容在buffer中');
+        // Then timeout error occurs
+        onError('Request timed out. Please try again.');
+        onDone();
+      },
+    };
+
+    await translateBatch(
+      [{ element: a, text: a.textContent }],
+      llmClient
+    );
+
+    const aNode = a.querySelector(':scope > .immersive-translate-target');
+
+    // Buffer content should be flushed BEFORE error handling
+    // So node should have content, not error
+    expect(aNode.classList.contains('immersive-translate-error')).toBe(false);
+    expect(aNode.textContent).toBe('部分翻译内容在buffer中');
+    expect(aNode.textContent).not.toContain('Error');
   });
 });
 
